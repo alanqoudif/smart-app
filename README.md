@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# 🧠 Smart Restaurant Brain
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+منصة SaaS مخصّصة للمطاعم تجعل كل الطلبات، بيانات العملاء، والمطبخ تحت سيطرة صاحب المطعم من مكان واحد. التطبيق مبني بالكامل باستخدام **Expo Router + React Native** ويمكن تشغيله على iOS/Android/Web مع تكامل اختياري مع **Supabase** كقاعدة بيانات سحابية.
 
-## Get started
+## المزايا الرئيسية
+- **واجهة الويتر**: تسجيل الطلب وربط العميل برقم الجوال مع مصادقة فورية للأصناف وإرسال مباشر للمطبخ.
+- **شاشة المطبخ (KDS)**: أعمدة مرئية لحالات الطلب (جديد → قيد التحضير → جاهز) مع أزرار لتسريع التحديث.
+- **لوحة تحكم صاحب المطعم**: مؤشرات لحظية عن المبيعات، متوسط التذكرة، المنتجات الأعلى طلباً، وتحليل بالساعة.
+- **قاعدة بيانات العملاء**: سجل كامل للطلبات السابقة، إجمالي الصرف، المفضلات، وزر لتصدير البيانات كـ CSV/Excel.
+- **مصدر بيانات مرن**: في حال عدم تهيئة Supabase، يعمل التطبيق بوضع تجريبي يعتمد على بيانات Mock حتى لا تتعطل رحلة التطوير.
 
-1. Install dependencies
+## المتطلبات
+- Node.js 18+
+- Expo CLI (`npx expo`)
+- حساب Supabase (اختياري لرفع البيانات على السحاب)
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+## طريقة التشغيل
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env        # عيّن مفاتيح Supabase إذا كانت متوفرة
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### متغيرات البيئة
+ضع القيم التالية داخل `.env` أو في متغيرات النظام قبل تشغيل Expo:
 
-## Learn more
+```
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+عند ترك القيم فارغة سيعمل التطبيق بالوضع التجريبي (ذاكرة محلية) مع بيانات جاهزة في `lib/mock-data.ts`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## إعداد قاعدة البيانات السحابية (Supabase)
+1. أنشئ مشروع Supabase جديد.
+2. نفّذ سكربت المخطط الجاهز:
+   ```bash
+   supabase db execute --file supabase/schema.sql
+   ```
+   أو الصقه في SQL Editor داخل لوحة Supabase.
+3. فعّل RLS حسب الحاجة ثم امنح مفاتيح `anon` للتطبيق (توجد تعليمات في ملف `.env.example`).
+4. بعد تعبئة بيانات القائمة (`menu_items`) سيبدأ التطبيق بقراءة/كتابة البيانات الحقيقية عبر `@supabase/supabase-js`.
 
-## Join the community
+## هيكل المجلدات
+```
+app/                     # مسارات Expo Router (طلبات، مطبخ، لوحة تحكم، عملاء)
+components/              # عناصر UI مشتركة من قالب Expo
+hooks/                   # هوكات تخص الثيم وألوان الواجهة
+lib/
+  ├─ data-source.ts      # اختيار مصدر البيانات (Supabase أو ذاكرة)
+  ├─ memory-data-source  # منطق Mock يستخدم أثناء التطوير
+  ├─ supabase-data-source# أوامر CRUD على جداول Supabase
+  ├─ metrics.ts          # توليد مؤشرات لوحة التحكم
+  └─ format.ts           # دوال مساعدة للتنسيقات
+providers/
+  └─ smart-app-provider  # React context يوفّر الحالة والعمليات لكل الشاشة
+supabase/schema.sql      # تعريف الجداول (customers, menu_items, orders, order_items)
+```
 
-Join our community of developers creating universal apps.
+## تدفق البيانات
+1. كل شاشة تستدعي `useSmartApp()` للحصول على القائمة، الطلبات، العملاء، والمتركس.
+2. `SmartAppProvider` يختار المصدر المناسب تلقائياً:
+   - **Supabase** إذا تم ضبط مفاتيح البيئة.
+   - **ذاكرة داخلية** مع بيانات `lib/mock-data.ts` في حال عدم وجود إعدادات.
+3. يتم تحديث الحالة بعد كل `createOrder` أو `updateOrderStatus` ثم يعاد حساب مؤشرات لوحة التحكم من خلال `lib/metrics.ts`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## التصدير إلى Excel/CSV
+- من تبويب العملاء يمكن ضغط زر **«تصدير Excel»**:
+  - في الويب: يتم إنشاء ملف CSV وتحميله مباشرة.
+  - في iOS/Android: يتم إنشاء الملف داخل `FileSystem` ثم عرضه عبر نافذة المشاركة.
+
+## أفكار للتوسع القادم
+1. إضافة مصادقة للموظفين وربط الصلاحيات بالأقسام (ويتر، كاشير، مالك).
+2. دمج إشعارات فورية للمطبخ عبر Supabase Realtime أو Expo Notifications.
+3. دعم نظام الفواتير والدمج مع أجهزة الطابعات/كاشير.
+4. إنشاء تقارير أسبوعية قابلة للتنزيل PDF أو إرسالها بالبريد تلقائياً.
+
+> أي استفسار أو تعديل إضافي؟ أخبرني بالمطلوب وسأقوم بتوسيعه 👍

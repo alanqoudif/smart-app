@@ -18,6 +18,10 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'cart.fill': 'shopping-bag',
+  'chart.bar.fill': 'insert-chart',
+  'person.3.fill': 'groups',
+  'tray.full.fill': 'restaurant-menu',
 } as IconMapping;
 
 /**

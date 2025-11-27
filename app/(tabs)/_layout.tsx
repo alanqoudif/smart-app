@@ -19,15 +19,29 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'طلبات الصالة',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="kitchen"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'شاشة المطبخ',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="tray.full.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'لوحة التحكم',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          title: 'العملاء',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.3.fill" color={color} />,
         }}
       />
     </Tabs>

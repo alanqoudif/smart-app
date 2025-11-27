@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "smart-app-tmp",
-    "slug": "smart-app-tmp",
+    "name": "Smart Restaurant Brain",
+    "slug": "smart-restaurant-brain",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "smartapptmp",
+    "scheme": "smartrestaurantbrain",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -38,7 +38,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
