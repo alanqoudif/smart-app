@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
-import { RoleSwitcher } from '@/components/role-switcher';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/lib/format';
 import { useSmartApp } from '@/providers/smart-app-provider';
@@ -30,7 +29,7 @@ export default function WaiterScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const router = useRouter();
   const { menu, createOrder, refresh, isSyncing, dataSourceId, lastError } = useSmartApp();
-  const { session, switchRole } = useStaffSession();
+  const { session } = useStaffSession();
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [tableNumber, setTableNumber] = useState('');
@@ -38,11 +37,6 @@ export default function WaiterScreen() {
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('dine-in');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isWaiter = session?.role === 'waiter';
-  const handleSwitchToWaiter = async () => {
-    await switchRole('waiter');
-    router.replace('/(tabs)/index');
-  };
 
   const groupedMenu = useMemo(() => {
     return menu.reduce<Record<string, typeof menu>>((acc, item) => {
@@ -143,19 +137,7 @@ export default function WaiterScreen() {
         style={styles.screen}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}>
-        <RoleSwitcher />
-      {!isWaiter ? (
-        <View style={styles.guardCard}>
-          <Text style={styles.guardTitle}>أنت الآن في وضع الشيف</Text>
-          <Text style={styles.guardText}>تحويلك إلى ويتر يفعّل شاشة إدخال الطلبات وإرسالها للمطبخ.</Text>
-          <TouchableOpacity style={styles.guardButton} onPress={handleSwitchToWaiter}>
-            <Text style={styles.guardButtonText}>تبديل إلى ويتر</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-      {isWaiter ? (
-        <>
-          <View style={styles.headerRow}>
+        <View style={styles.headerRow}>
             <Text style={styles.title}>تسجيل طلب جديد</Text>
             <View style={styles.dataSourceChip}>
               <Text style={styles.chipText}>
@@ -170,12 +152,14 @@ export default function WaiterScreen() {
             <Text style={styles.sectionTitle}>بيانات العميل</Text>
             <TextInput
               placeholder="اسم العميل"
+              placeholderTextColor={theme.muted}
               value={customerName}
               onChangeText={setCustomerName}
               style={styles.input}
             />
             <TextInput
               placeholder="رقم الجوال"
+              placeholderTextColor={theme.muted}
               value={customerPhone}
               onChangeText={setCustomerPhone}
               keyboardType="phone-pad"
@@ -202,6 +186,7 @@ export default function WaiterScreen() {
             {fulfillmentType === 'dine-in' ? (
               <TextInput
                 placeholder="رقم الطاولة"
+                placeholderTextColor={theme.muted}
                 value={tableNumber}
                 onChangeText={setTableNumber}
                 style={styles.input}
@@ -209,6 +194,7 @@ export default function WaiterScreen() {
             ) : null}
             <TextInput
               placeholder="ملاحظات خاصة (اختياري)"
+              placeholderTextColor={theme.muted}
               value={note}
               onChangeText={setNote}
               style={[styles.input, styles.multilineInput]}
@@ -289,8 +275,6 @@ export default function WaiterScreen() {
               <Text style={styles.helperText}>{disabledReason}</Text>
             ) : null}
           </View>
-        </>
-      ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -336,34 +320,6 @@ const createStyles = (theme: typeof Colors.light) =>
       color: theme.danger,
       fontWeight: '600',
     },
-    guardCard: {
-      backgroundColor: theme.card,
-      borderRadius: 14,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: theme.border,
-      gap: 6,
-    },
-    guardTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: theme.text,
-    },
-    guardText: {
-      color: theme.muted,
-    },
-    guardButton: {
-      alignSelf: 'flex-start',
-      marginTop: 4,
-      backgroundColor: theme.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 12,
-    },
-    guardButtonText: {
-      color: '#fff',
-      fontWeight: '700',
-    },
     card: {
       backgroundColor: theme.card,
       borderRadius: 16,
@@ -387,6 +343,8 @@ const createStyles = (theme: typeof Colors.light) =>
       paddingVertical: 10,
       marginBottom: 12,
       fontSize: 15,
+      color: theme.text,
+      backgroundColor: theme.card,
     },
     multilineInput: {
       minHeight: 70,

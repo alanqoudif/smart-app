@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useTheme } from '@/providers/theme-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -10,14 +11,29 @@ export default function SettingsScreen() {
   const { colorScheme, themeMode, setThemeMode } = useTheme();
   const { session, logout } = useStaffSession();
   const colors = Colors[colorScheme];
+  const router = useRouter();
 
-  const handleSignOut = () => {
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'waiter':
+        return 'ويتر';
+      case 'chef':
+        return 'شيف';
+      default:
+        return 'موظف';
+    }
+  };
+
+  const handleLogout = () => {
     Alert.alert('تسجيل الخروج', 'هل أنت متأكد من تسجيل الخروج؟', [
       { text: 'إلغاء', style: 'cancel' },
       {
         text: 'تسجيل الخروج',
         style: 'destructive',
-        onPress: logout,
+        onPress: async () => {
+          await logout();
+          router.replace('/login');
+        },
       },
     ]);
   };
@@ -39,19 +55,39 @@ export default function SettingsScreen() {
 
       {/* Account Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>الحساب</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>معلومات الحساب</Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.accountInfo}>
             <View
               style={[styles.avatarContainer, { backgroundColor: colors.primaryMuted }]}>
-              <IconSymbol name="person.fill" size={32} color={colors.primary} />
+              <IconSymbol 
+                name={session?.role === 'chef' ? 'flame.fill' : 'cart.fill'} 
+                size={32} 
+                color={colors.primary} 
+              />
             </View>
             <View style={styles.accountDetails}>
               <Text style={[styles.accountName, { color: colors.text }]}>
-                {session?.role === 'cashier' ? 'الكاشير' : session?.role === 'kitchen' ? 'المطبخ' : 'الموظف'}
+                {session?.staffName || 'موظف المطعم'}
               </Text>
-              <Text style={[styles.accountRole, { color: colors.muted }]}>
-                {session?.role === 'cashier' ? 'موظف الكاشير' : session?.role === 'kitchen' ? 'موظف المطبخ' : 'الدور'}
+              <View style={styles.roleContainer}>
+                <View
+                  style={[
+                    styles.roleBadge,
+                    { backgroundColor: `${colors.primary}20`, borderColor: colors.primary },
+                  ]}>
+                  <IconSymbol
+                    name={session?.role === 'chef' ? 'flame.fill' : 'cart.fill'}
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.roleText, { color: colors.primary }]}>
+                    {getRoleLabel(session?.role || 'waiter')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.restaurantCode, { color: colors.muted }]}>
+                {session?.restaurantCode || 'demo-restaurant'}
               </Text>
             </View>
           </View>
@@ -101,13 +137,13 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Sign Out */}
+      {/* Logout Section */}
       <View style={styles.section}>
         <Pressable
-          style={[styles.signOutButton, { backgroundColor: colors.danger }]}
-          onPress={handleSignOut}>
+          style={[styles.logoutButton, { backgroundColor: colors.danger }]}
+          onPress={handleLogout}>
           <IconSymbol name="arrow.right.square.fill" size={20} color="#ffffff" />
-          <Text style={styles.signOutText}>تسجيل الخروج</Text>
+          <Text style={styles.logoutText}>تسجيل الخروج</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -168,6 +204,27 @@ const styles = StyleSheet.create({
   accountRole: {
     fontSize: 14,
   },
+  roleContainer: {
+    marginTop: 8,
+  },
+  roleBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignSelf: 'flex-end',
+  },
+  roleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  restaurantCode: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   cardLabel: {
     fontSize: 14,
     marginBottom: 12,
@@ -195,7 +252,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'right',
   },
-  signOutButton: {
+  logoutButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
@@ -203,7 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
-  signOutText: {
+  logoutText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',

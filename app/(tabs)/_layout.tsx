@@ -19,6 +19,9 @@ export default function TabLayout() {
     return <Redirect href="/login" />;
   }
 
+  const isWaiter = session.role === 'waiter';
+  const isChef = session.role === 'chef';
+
   return (
     <Tabs
       screenOptions={{
@@ -26,20 +29,27 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
+      {/* طلبات الصالة - للويتر فقط */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'طلبات الصالة',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
+          href: isWaiter ? '/(tabs)/' : null,
         }}
       />
+      
+      {/* شاشة المطبخ - للشيف فقط */}
       <Tabs.Screen
         name="kitchen"
         options={{
           title: 'شاشة المطبخ',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="tray.full.fill" color={color} />,
+          href: isChef ? '/(tabs)/kitchen' : null,
         }}
       />
+      
+      {/* لوحة التحكم - للجميع */}
       <Tabs.Screen
         name="dashboard"
         options={{
@@ -47,6 +57,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
         }}
       />
+      
+      {/* العملاء - للجميع */}
       <Tabs.Screen
         name="customers"
         options={{
@@ -54,6 +66,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.3.fill" color={color} />,
         }}
       />
+      
+      {/* الإعدادات - للجميع */}
       <Tabs.Screen
         name="settings"
         options={{
