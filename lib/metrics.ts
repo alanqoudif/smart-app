@@ -7,8 +7,23 @@ export function calculateDashboardMetrics(orders: Order[]): DashboardMetrics {
   const startOfDay = new Date(now);
   startOfDay.setHours(0, 0, 0, 0);
 
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date(now);
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
   const todaysOrders = orders.filter((order) => new Date(order.createdAt) >= startOfDay);
+  const weekOrders = orders.filter((order) => new Date(order.createdAt) >= startOfWeek);
+  const monthOrders = orders.filter((order) => new Date(order.createdAt) >= startOfMonth);
+
   const totalSalesToday = todaysOrders.reduce((sum, order) => sum + order.total, 0);
+  const totalRevenueToday = totalSalesToday;
+  const totalRevenueWeek = weekOrders.reduce((sum, order) => sum + order.total, 0);
+  const totalRevenueMonth = monthOrders.reduce((sum, order) => sum + order.total, 0);
+
   const avgTicketSize =
     todaysOrders.length === 0 ? 0 : parseFloat((totalSalesToday / todaysOrders.length).toFixed(2));
 
@@ -57,5 +72,8 @@ export function calculateDashboardMetrics(orders: Order[]): DashboardMetrics {
     topMenuItems,
     hourlySales,
     statusBreakdown,
+    totalRevenueToday,
+    totalRevenueWeek,
+    totalRevenueMonth,
   };
 }

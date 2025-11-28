@@ -21,6 +21,7 @@ export default function TabLayout() {
 
   const isWaiter = session.role === 'waiter';
   const isChef = session.role === 'chef';
+  const isManager = session.role === 'manager';
 
   return (
     <Tabs
@@ -46,6 +47,16 @@ export default function TabLayout() {
           title: 'شاشة المطبخ',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="tray.full.fill" color={color} />,
           href: isChef ? '/(tabs)/kitchen' : null,
+        }}
+      />
+      
+      {/* إدارة المنيو - للمدير فقط */}
+      <Tabs.Screen
+        name="menu-management"
+        options={{
+          title: 'إدارة المنيو',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="list.bullet.clipboard.fill" color={color} />,
+          href: isManager ? '/(tabs)/menu-management' : null,
         }}
       />
       

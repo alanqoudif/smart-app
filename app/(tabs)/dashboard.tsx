@@ -3,10 +3,12 @@ import { useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { formatCurrency } from '@/lib/format';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useSmartApp } from '@/providers/smart-app-provider';
+import { useStaffSession } from '@/providers/staff-session-provider';
 import { Order, OrderStatus } from '@/types';
 
 const METRIC_LABELS: { key: keyof ReturnType<typeof useSmartApp>['metrics']; title: string; subtitle: string }[] = [
@@ -33,7 +35,9 @@ export default function DashboardScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const statusBadgeColors = useMemo(() => getStatusBadgeColors(theme), [theme]);
   const { metrics, orders, refresh, isSyncing } = useSmartApp();
+  const { session } = useStaffSession();
   const latestOrders = orders.slice(0, 5);
+  const isManager = session?.role === 'manager';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -42,6 +46,44 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}
         contentContainerStyle={styles.content}>
         <Text style={styles.title}>لوحة المراقبة اليومية</Text>
+        
+        {/* Revenue Cards - Manager Only */}
+        {isManager && (
+          <View style={styles.revenueSection}>
+            <Text style={styles.sectionTitle}>الأرباح والإيرادات</Text>
+            <View style={styles.revenueGrid}>
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.success}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="calendar" size={24} color={theme.success} />
+                </View>
+                <Text style={styles.revenueLabel}>اليوم</Text>
+                <Text style={[styles.revenueValue, { color: theme.success }]}>
+                  {formatCurrency(metrics.totalRevenueToday)}
+                </Text>
+              </View>
+              
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.primary}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="calendar.badge.clock" size={24} color={theme.primary} />
+                </View>
+                <Text style={styles.revenueLabel}>الأسبوع</Text>
+                <Text style={[styles.revenueValue, { color: theme.primary }]}>
+                  {formatCurrency(metrics.totalRevenueWeek)}
+                </Text>
+              </View>
+              
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.warning}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="chart.bar.fill" size={24} color={theme.warning} />
+                </View>
+                <Text style={styles.revenueLabel}>الشهر</Text>
+                <Text style={[styles.revenueValue, { color: theme.warning }]}>
+                  {formatCurrency(metrics.totalRevenueMonth)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
         <View style={styles.grid}>
           {METRIC_LABELS.map((metric) => {
             let value: string | number = metrics.totalOrdersToday;
@@ -168,6 +210,37 @@ const createStyles = (theme: typeof Colors.light) =>
     },
     title: {
       fontSize: 22,
+      fontWeight: '700',
+    },
+    revenueSection: {
+      marginBottom: 8,
+    },
+    revenueGrid: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    revenueCard: {
+      flex: 1,
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      gap: 8,
+    },
+    revenueIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    revenueLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.muted,
+    },
+    revenueValue: {
+      fontSize: 18,
       fontWeight: '700',
     },
     grid: {

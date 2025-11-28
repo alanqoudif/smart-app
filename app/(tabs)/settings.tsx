@@ -19,8 +19,23 @@ export default function SettingsScreen() {
         return 'ويتر';
       case 'chef':
         return 'شيف';
+      case 'manager':
+        return 'مدير المطعم';
       default:
         return 'موظف';
+    }
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'waiter':
+        return 'cart.fill';
+      case 'chef':
+        return 'flame.fill';
+      case 'manager':
+        return 'star.fill';
+      default:
+        return 'person.fill';
     }
   };
 
@@ -61,7 +76,7 @@ export default function SettingsScreen() {
             <View
               style={[styles.avatarContainer, { backgroundColor: colors.primaryMuted }]}>
               <IconSymbol 
-                name={session?.role === 'chef' ? 'flame.fill' : 'cart.fill'} 
+                name={getRoleIcon(session?.role || 'waiter')} 
                 size={32} 
                 color={colors.primary} 
               />
@@ -77,7 +92,7 @@ export default function SettingsScreen() {
                     { backgroundColor: `${colors.primary}20`, borderColor: colors.primary },
                   ]}>
                   <IconSymbol
-                    name={session?.role === 'chef' ? 'flame.fill' : 'cart.fill'}
+                    name={getRoleIcon(session?.role || 'waiter')}
                     size={14}
                     color={colors.primary}
                   />

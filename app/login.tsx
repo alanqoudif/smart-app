@@ -12,6 +12,7 @@ import { StaffRole } from '@/types';
 const ROLE_OPTIONS: { label: string; value: StaffRole; description: string }[] = [
   { label: 'ويتر', value: 'waiter', description: 'تسجيل الطلبات وإرسالها للمطبخ' },
   { label: 'شيف', value: 'chef', description: 'استقبال الطلبات الجاهزة للتحضير' },
+  { label: 'مدير المطعم', value: 'manager', description: 'إدارة المطعم والمنيو ومراقبة الإحصائيات' },
 ];
 
 export default function LoginScreen() {
@@ -37,7 +38,13 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       await login({ restaurantCode, staffName, role });
-      router.replace(role === 'chef' ? '/(tabs)/kitchen' : '/(tabs)/index');
+      const route =
+        role === 'chef'
+          ? '/(tabs)/kitchen'
+          : role === 'manager'
+            ? '/(tabs)/dashboard'
+            : '/(tabs)/index';
+      router.replace(route);
     } catch (error) {
       Alert.alert('تعذر تسجيل الدخول', error instanceof Error ? error.message : 'حاول مرة أخرى');
     } finally {
