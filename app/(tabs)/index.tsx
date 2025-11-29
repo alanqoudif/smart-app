@@ -1,19 +1,14 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/lib/format';
 import { useSmartApp } from '@/providers/smart-app-provider';
+import { useStaffSession } from '@/providers/staff-session-provider';
 import { FulfillmentType } from '@/types';
 
 type CartItem = {
@@ -32,7 +27,9 @@ const FULFILLMENT_OPTIONS: { label: string; value: FulfillmentType }[] = [
 export default function WaiterScreen() {
   const theme = useThemeColors();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const router = useRouter();
   const { menu, createOrder, refresh, isSyncing, dataSourceId, lastError } = useSmartApp();
+  const { session } = useStaffSession();
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [tableNumber, setTableNumber] = useState('');
@@ -56,11 +53,20 @@ export default function WaiterScreen() {
     [cartItems],
   );
 
+  const phoneDigits = customerPhone.replace(/\D/g, '');
   const isFormValid =
     customerName.trim().length > 1 &&
-    customerPhone.trim().length >= 9 &&
+    phoneDigits.length >= 8 &&
     cartItems.length > 0 &&
     (fulfillmentType !== 'dine-in' || tableNumber.trim().length > 0);
+
+  const disabledReason = (() => {
+    if (!customerName.trim()) return 'أدخل اسم العميل';
+    if (phoneDigits.length < 8) return 'أدخل رقم جوال صحيح';
+    if (fulfillmentType === 'dine-in' && !tableNumber.trim()) return 'أدخل رقم الطاولة';
+    if (cartItems.length === 0) return 'أضف عناصر من القائمة أولاً';
+    return null;
+  })();
 
   const handleAddItem = (menuItemId: string, name: string, price: number) => {
     setCartItems((prev) => {
@@ -105,7 +111,7 @@ export default function WaiterScreen() {
     setIsSubmitting(true);
     try {
       await createOrder({
-        customer: { fullName: customerName.trim(), phone: customerPhone.trim() },
+        customer: { fullName: customerName.trim(), phone: phoneDigits },
         fulfillmentType,
         tableNumber: fulfillmentType === 'dine-in' ? tableNumber.trim() : undefined,
         note: note.trim() || undefined,
@@ -126,147 +132,160 @@ export default function WaiterScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>تسجيل طلب جديد</Text>
-        <View style={styles.dataSourceChip}>
-          <Text style={styles.chipText}>
-            {dataSourceId === 'supabase' ? 'وضع الإنتاج' : 'وضع تجريبي بدون إنترنت'}
-          </Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}>
+        <View style={styles.headerRow}>
+            <Text style={styles.title}>تسجيل طلب جديد</Text>
+            <View style={styles.dataSourceChip}>
+              <Text style={styles.chipText}>
+                {dataSourceId === 'supabase' ? 'وضع الإنتاج' : 'وضع تجريبي بدون إنترنت'}
+              </Text>
+            </View>
+          </View>
 
-      {lastError ? <Text style={styles.errorText}>{lastError}</Text> : null}
+          {lastError ? <Text style={styles.errorText}>{lastError}</Text> : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>بيانات العميل</Text>
-        <TextInput
-          placeholder="اسم العميل"
-          value={customerName}
-          onChangeText={setCustomerName}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="رقم الجوال"
-          value={customerPhone}
-          onChangeText={setCustomerPhone}
-          keyboardType="phone-pad"
-          style={styles.input}
-        />
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>بيانات العميل</Text>
+            <TextInput
+              placeholder="اسم العميل"
+              placeholderTextColor={theme.muted}
+              value={customerName}
+              onChangeText={setCustomerName}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="رقم الجوال"
+              placeholderTextColor={theme.muted}
+              value={customerPhone}
+              onChangeText={setCustomerPhone}
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
 
-        <Text style={styles.sectionTitle}>طريقة الخدمة</Text>
-        <View style={styles.segment}>
-          {FULFILLMENT_OPTIONS.map((option) => {
-            const selected = option.value === fulfillmentType;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
-                onPress={() => setFulfillmentType(option.value)}>
-                <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+            <Text style={styles.sectionTitle}>طريقة الخدمة</Text>
+            <View style={styles.segment}>
+              {FULFILLMENT_OPTIONS.map((option) => {
+                const selected = option.value === fulfillmentType;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                    onPress={() => setFulfillmentType(option.value)}>
+                    <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-        {fulfillmentType === 'dine-in' ? (
-          <TextInput
-            placeholder="رقم الطاولة"
-            value={tableNumber}
-            onChangeText={setTableNumber}
-            style={styles.input}
-          />
-        ) : null}
-        <TextInput
-          placeholder="ملاحظات خاصة (اختياري)"
-          value={note}
-          onChangeText={setNote}
-          style={[styles.input, styles.multilineInput]}
-          multiline
-        />
-      </View>
+            {fulfillmentType === 'dine-in' ? (
+              <TextInput
+                placeholder="رقم الطاولة"
+                placeholderTextColor={theme.muted}
+                value={tableNumber}
+                onChangeText={setTableNumber}
+                style={styles.input}
+              />
+            ) : null}
+            <TextInput
+              placeholder="ملاحظات خاصة (اختياري)"
+              placeholderTextColor={theme.muted}
+              value={note}
+              onChangeText={setNote}
+              style={[styles.input, styles.multilineInput]}
+              multiline
+            />
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>قائمة المطعم</Text>
-        {Object.keys(groupedMenu).length === 0 ? (
-          <Text style={styles.mutedText}>لم يتم تعريف القائمة بعد.</Text>
-        ) : (
-          Object.entries(groupedMenu).map(([category, items]) => (
-            <View key={category} style={styles.menuSection}>
-              <Text style={styles.categoryTitle}>{category}</Text>
-              {items.map((item) => (
-                <View key={item.id} style={styles.menuItemRow}>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>قائمة المطعم</Text>
+            {Object.keys(groupedMenu).length === 0 ? (
+              <Text style={styles.mutedText}>لم يتم تعريف القائمة بعد.</Text>
+            ) : (
+              Object.entries(groupedMenu).map(([category, items]) => (
+                <View key={category} style={styles.menuSection}>
+                  <Text style={styles.categoryTitle}>{category}</Text>
+                  {items.map((item) => (
+                    <View key={item.id} style={styles.menuItemRow}>
+                      <View>
+                        <Text style={styles.menuItemName}>{item.name}</Text>
+                        <Text style={styles.mutedText}>
+                          {formatCurrency(item.price)} • {item.prepTimeMinutes} د
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        disabled={!item.isAvailable}
+                        onPress={() => handleAddItem(item.id, item.name, item.price)}
+                        style={[
+                          styles.addButton,
+                          !item.isAvailable && styles.addButtonDisabled,
+                        ]}>
+                        <Text style={styles.addButtonText}>{item.isAvailable ? '+ أضف' : 'متوقف'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.sectionTitle}>ملخص الطلب</Text>
+              <Text style={styles.totalLabel}>{formatCurrency(orderTotal)}</Text>
+            </View>
+            {cartItems.length === 0 ? (
+              <Text style={styles.mutedText}>أضف عناصر من القائمة لبدء الطلب.</Text>
+            ) : (
+              cartItems.map((item) => (
+                <View key={item.menuItemId} style={styles.cartRow}>
                   <View>
                     <Text style={styles.menuItemName}>{item.name}</Text>
-                    <Text style={styles.mutedText}>
-                      {formatCurrency(item.price)} • {item.prepTimeMinutes} د
-                    </Text>
+                    <Text style={styles.mutedText}>{formatCurrency(item.price * item.quantity)}</Text>
                   </View>
-                  <TouchableOpacity
-                    disabled={!item.isAvailable}
-                    onPress={() => handleAddItem(item.id, item.name, item.price)}
-                    style={[
-                      styles.addButton,
-                      !item.isAvailable && styles.addButtonDisabled,
-                    ]}>
-                    <Text style={styles.addButtonText}>{item.isAvailable ? '+ أضف' : 'متوقف'}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, -1)}>
+                      <Text style={styles.iconButton}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.quantity}>{item.quantity}</Text>
+                    <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, 1)}>
+                      <Text style={styles.iconButton}>+</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleRemoveItem(item.menuItemId!)}>
+                      <Text style={styles.removeText}>حذف</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ))}
-            </View>
-          ))
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.summaryHeader}>
-          <Text style={styles.sectionTitle}>ملخص الطلب</Text>
-          <Text style={styles.totalLabel}>{formatCurrency(orderTotal)}</Text>
-        </View>
-        {cartItems.length === 0 ? (
-          <Text style={styles.mutedText}>أضف عناصر من القائمة لبدء الطلب.</Text>
-        ) : (
-          cartItems.map((item) => (
-            <View key={item.menuItemId} style={styles.cartRow}>
-              <View>
-                <Text style={styles.menuItemName}>{item.name}</Text>
-                <Text style={styles.mutedText}>{formatCurrency(item.price * item.quantity)}</Text>
-              </View>
-              <View style={styles.quantityControls}>
-                <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, -1)}>
-                  <Text style={styles.iconButton}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.quantity}>{item.quantity}</Text>
-                <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, 1)}>
-                  <Text style={styles.iconButton}>+</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleRemoveItem(item.menuItemId!)}>
-                  <Text style={styles.removeText}>حذف</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-        <TouchableOpacity
-          style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]}
-          disabled={!isFormValid || isSubmitting}
-          onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>
-            {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال الطلب للمطبخ'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+              ))
+            )}
+            <TouchableOpacity
+              style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]}
+              disabled={!isFormValid || isSubmitting}
+              onPress={handleSubmit}>
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال الطلب للمطبخ'}
+              </Text>
+            </TouchableOpacity>
+            {!isFormValid && disabledReason ? (
+              <Text style={styles.helperText}>{disabledReason}</Text>
+            ) : null}
+          </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (theme: typeof Colors.light) =>
   StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.backgroundAlt,
+    },
     screen: {
       flex: 1,
       backgroundColor: theme.backgroundAlt,
@@ -324,6 +343,8 @@ const createStyles = (theme: typeof Colors.light) =>
       paddingVertical: 10,
       marginBottom: 12,
       fontSize: 15,
+      color: theme.text,
+      backgroundColor: theme.card,
     },
     multilineInput: {
       minHeight: 70,
@@ -440,5 +461,10 @@ const createStyles = (theme: typeof Colors.light) =>
       color: '#fff',
       fontSize: 16,
       fontWeight: '700',
+    },
+    helperText: {
+      marginTop: 8,
+      color: theme.muted,
+      textAlign: 'center',
     },
   });

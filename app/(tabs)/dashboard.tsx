@@ -1,11 +1,14 @@
 import { useMemo } from 'react';
 
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { formatCurrency } from '@/lib/format';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useSmartApp } from '@/providers/smart-app-provider';
+import { useStaffSession } from '@/providers/staff-session-provider';
 import { Order, OrderStatus } from '@/types';
 
 const METRIC_LABELS: { key: keyof ReturnType<typeof useSmartApp>['metrics']; title: string; subtitle: string }[] = [
@@ -32,40 +35,81 @@ export default function DashboardScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const statusBadgeColors = useMemo(() => getStatusBadgeColors(theme), [theme]);
   const { metrics, orders, refresh, isSyncing } = useSmartApp();
+  const { session } = useStaffSession();
   const latestOrders = orders.slice(0, 5);
+  const isManager = session?.role === 'manager';
 
   return (
-    <ScrollView
-      style={styles.screen}
-      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}
-      contentContainerStyle={styles.content}>
-      <Text style={styles.title}>لوحة المراقبة اليومية</Text>
-      <View style={styles.grid}>
-        {METRIC_LABELS.map((metric) => {
-          let value: string | number = metrics.totalOrdersToday;
-          switch (metric.key) {
-            case 'totalSalesToday':
-              value = formatCurrency(metrics.totalSalesToday);
-              break;
-            case 'avgTicketSize':
-              value = formatCurrency(metrics.avgTicketSize);
-              break;
-            case 'readyPercentage':
-              value = `${metrics.readyPercentage.toFixed(0)}%`;
-              break;
-            case 'totalOrdersToday':
-              value = metrics.totalOrdersToday;
-              break;
-          }
-          return (
-            <View key={metric.key} style={styles.metricCard}>
-              <Text style={styles.metricTitle}>{metric.title}</Text>
-              <Text style={styles.metricValue}>{value}</Text>
-              <Text style={styles.metricSubtitle}>{metric.subtitle}</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <ScrollView
+        style={styles.screen}
+        refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}
+        contentContainerStyle={styles.content}>
+        <Text style={styles.title}>لوحة المراقبة اليومية</Text>
+        
+        {/* Revenue Cards - Manager Only */}
+        {isManager && (
+          <View style={styles.revenueSection}>
+            <Text style={styles.sectionTitle}>الأرباح والإيرادات</Text>
+            <View style={styles.revenueGrid}>
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.success}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="calendar" size={24} color={theme.success} />
+                </View>
+                <Text style={styles.revenueLabel}>اليوم</Text>
+                <Text style={[styles.revenueValue, { color: theme.success }]}>
+                  {formatCurrency(metrics.totalRevenueToday)}
+                </Text>
+              </View>
+              
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.primary}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="calendar.badge.clock" size={24} color={theme.primary} />
+                </View>
+                <Text style={styles.revenueLabel}>الأسبوع</Text>
+                <Text style={[styles.revenueValue, { color: theme.primary }]}>
+                  {formatCurrency(metrics.totalRevenueWeek)}
+                </Text>
+              </View>
+              
+              <View style={[styles.revenueCard, { backgroundColor: `${theme.warning}15` }]}>
+                <View style={styles.revenueIcon}>
+                  <IconSymbol name="chart.bar.fill" size={24} color={theme.warning} />
+                </View>
+                <Text style={styles.revenueLabel}>الشهر</Text>
+                <Text style={[styles.revenueValue, { color: theme.warning }]}>
+                  {formatCurrency(metrics.totalRevenueMonth)}
+                </Text>
+              </View>
             </View>
-          );
-        })}
-      </View>
+          </View>
+        )}
+        <View style={styles.grid}>
+          {METRIC_LABELS.map((metric) => {
+            let value: string | number = metrics.totalOrdersToday;
+            switch (metric.key) {
+              case 'totalSalesToday':
+                value = formatCurrency(metrics.totalSalesToday);
+                break;
+              case 'avgTicketSize':
+                value = formatCurrency(metrics.avgTicketSize);
+                break;
+              case 'readyPercentage':
+                value = `${metrics.readyPercentage.toFixed(0)}%`;
+                break;
+              case 'totalOrdersToday':
+                value = metrics.totalOrdersToday;
+                break;
+            }
+            return (
+              <View key={metric.key} style={styles.metricCard}>
+                <Text style={styles.metricTitle}>{metric.title}</Text>
+                <Text style={styles.metricValue}>{value}</Text>
+                <Text style={styles.metricSubtitle}>{metric.subtitle}</Text>
+              </View>
+            );
+          })}
+        </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>حالة المطبخ</Text>
@@ -118,39 +162,44 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>أحدث الطلبات</Text>
-        {latestOrders.map((order: Order) => (
-          <View key={order.id} style={styles.orderRow}>
-            <View>
-              <Text style={styles.listName}>{order.customer.fullName}</Text>
-              <Text style={styles.mutedText}>
-                {order.items.length} صنف • {order.fulfillmentType === 'dine-in' ? 'صالة' : 'سفري'}
-              </Text>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>أحدث الطلبات</Text>
+          {latestOrders.map((order: Order) => (
+            <View key={order.id} style={styles.orderRow}>
+              <View>
+                <Text style={styles.listName}>{order.customer.fullName}</Text>
+                <Text style={styles.mutedText}>
+                  {order.items.length} صنف • {order.fulfillmentType === 'dine-in' ? 'صالة' : 'سفري'}
+                </Text>
+              </View>
+              <View style={styles.orderMeta}>
+                <Text style={styles.listValue}>{formatCurrency(order.total)}</Text>
+                <Text
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: statusBadgeColors[order.status] },
+                  ]}>
+                  {order.status === 'new'
+                    ? 'جديد'
+                    : order.status === 'preparing'
+                      ? 'قيد التحضير'
+                      : 'جاهز'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.orderMeta}>
-              <Text style={styles.listValue}>{formatCurrency(order.total)}</Text>
-              <Text
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusBadgeColors[order.status] },
-                ]}>
-                {order.status === 'new'
-                  ? 'جديد'
-                  : order.status === 'preparing'
-                    ? 'قيد التحضير'
-                    : 'جاهز'}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (theme: typeof Colors.light) =>
   StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.backgroundAlt,
+    },
     screen: {
       flex: 1,
       backgroundColor: theme.backgroundAlt,
@@ -161,6 +210,37 @@ const createStyles = (theme: typeof Colors.light) =>
     },
     title: {
       fontSize: 22,
+      fontWeight: '700',
+    },
+    revenueSection: {
+      marginBottom: 8,
+    },
+    revenueGrid: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    revenueCard: {
+      flex: 1,
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      gap: 8,
+    },
+    revenueIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    revenueLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.muted,
+    },
+    revenueValue: {
+      fontSize: 18,
       fontWeight: '700',
     },
     grid: {

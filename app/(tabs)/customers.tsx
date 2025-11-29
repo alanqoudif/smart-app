@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { formatCurrency, formatPhone, formatShortDate } from '@/lib/format';
@@ -72,55 +73,61 @@ export default function CustomersScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.screen}
-      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}
-      contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>ملف العملاء</Text>
-        <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-          <Text style={styles.exportText}>تصدير Excel</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TextInput
-        placeholder="ابحث بالاسم أو الجوال"
-        style={styles.input}
-        value={search}
-        onChangeText={setSearch}
-      />
-
-      {filtered.map((customer) => (
-        <View key={customer.id} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.customerName}>{customer.fullName}</Text>
-            <Text style={styles.customerPhone}>{formatPhone(customer.phone)}</Text>
-          </View>
-          <View style={styles.statsRow}>
-            <View>
-              <Text style={styles.statLabel}>إجمالي الصرف</Text>
-              <Text style={styles.statValue}>{formatCurrency(customer.totalSpend)}</Text>
-            </View>
-            <View>
-              <Text style={styles.statLabel}>زيارات</Text>
-              <Text style={styles.statValue}>{customer.visitCount}</Text>
-            </View>
-            <View>
-              <Text style={styles.statLabel}>آخر طلب</Text>
-              <Text style={styles.statValue}>{formatShortDate(customer.lastOrderAt)}</Text>
-            </View>
-          </View>
-          {customer.favoriteDish ? (
-            <Text style={styles.favorite}>يعشق: {customer.favoriteDish}</Text>
-          ) : null}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <ScrollView
+        style={styles.screen}
+        refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}
+        contentContainerStyle={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>ملف العملاء</Text>
+          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+            <Text style={styles.exportText}>تصدير Excel</Text>
+          </TouchableOpacity>
         </View>
-      ))}
-    </ScrollView>
+
+        <TextInput
+          placeholder="ابحث بالاسم أو الجوال"
+          style={styles.input}
+          value={search}
+          onChangeText={setSearch}
+        />
+
+        {filtered.map((customer) => (
+          <View key={customer.id} style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.customerName}>{customer.fullName}</Text>
+              <Text style={styles.customerPhone}>{formatPhone(customer.phone)}</Text>
+            </View>
+            <View style={styles.statsRow}>
+              <View>
+                <Text style={styles.statLabel}>إجمالي الصرف</Text>
+                <Text style={styles.statValue}>{formatCurrency(customer.totalSpend)}</Text>
+              </View>
+              <View>
+                <Text style={styles.statLabel}>زيارات</Text>
+                <Text style={styles.statValue}>{customer.visitCount}</Text>
+              </View>
+              <View>
+                <Text style={styles.statLabel}>آخر طلب</Text>
+                <Text style={styles.statValue}>{formatShortDate(customer.lastOrderAt)}</Text>
+              </View>
+            </View>
+            {customer.favoriteDish ? (
+              <Text style={styles.favorite}>يعشق: {customer.favoriteDish}</Text>
+            ) : null}
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const createStyles = (theme: typeof Colors.light) =>
   StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.backgroundAlt,
+    },
     screen: {
       flex: 1,
       backgroundColor: theme.backgroundAlt,

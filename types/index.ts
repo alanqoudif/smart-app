@@ -1,5 +1,6 @@
 export type OrderStatus = 'new' | 'preparing' | 'ready';
 export type FulfillmentType = 'dine-in' | 'pickup' | 'delivery';
+export type StaffRole = 'waiter' | 'chef' | 'manager';
 
 export interface MenuItem {
   id: string;
@@ -70,4 +71,13 @@ export interface DashboardMetrics {
   topMenuItems: { name: string; totalSold: number }[];
   hourlySales: { hourLabel: string; total: number }[];
   statusBreakdown: Record<OrderStatus, number>;
+  totalRevenueToday: number;
+  totalRevenueWeek: number;
+  totalRevenueMonth: number;
+}
+
+export interface StaffSession {
+  staffName: string;
+  restaurantCode: string;
+  role: StaffRole;
 }

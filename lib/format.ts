@@ -1,24 +1,25 @@
-const SAR_FORMATTER = new Intl.NumberFormat('ar-SA', {
+const OMR_FORMATTER = new Intl.NumberFormat('ar-OM', {
   style: 'currency',
-  currency: 'SAR',
-  maximumFractionDigits: 2,
+  currency: 'OMR',
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
 });
 
 export function formatCurrency(value: number, options?: { currency?: string }) {
-  if (options?.currency && options.currency !== 'SAR') {
+  if (options?.currency && options.currency !== 'OMR') {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: options.currency,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 3,
     }).format(value);
   }
 
-  return SAR_FORMATTER.format(value);
+  return OMR_FORMATTER.format(value);
 }
 
 export function formatPhone(phone: string) {
-  if (phone.startsWith('+966')) {
-    return `0${phone.slice(4)}`;
+  if (phone.startsWith('+968')) {
+    return phone.slice(4);
   }
   return phone;
 }
