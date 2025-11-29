@@ -19,6 +19,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency } from '@/lib/format';
 import { useSmartApp } from '@/providers/smart-app-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
+import { useTranslation } from '@/providers/language-provider';
 import { FulfillmentType } from '@/types';
 
 type CartItem = {
@@ -36,20 +37,21 @@ const FULFILLMENT_OPTIONS: { label: string; value: FulfillmentType }[] = [
 
 export default function WaiterScreen() {
   const theme = useThemeColors();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t, translateLiteral: tl, isRTL } = useTranslation();
+  const styles = useMemo(() => createStyles(theme, isRTL), [theme, isRTL]);
   const { menu, orders, createOrder, refresh, isSyncing, dataSourceId, lastError } = useSmartApp();
   const { session } = useStaffSession();
   const { width } = useWindowDimensions();
   const isCashier = session?.role === 'cashier';
   const isSplitLayout = width >= 900;
-  const badgeLabel = isCashier ? 'شاشة الكاشير' : 'فريق الصالة';
-  const heroTitle = isCashier ? 'شاشة كاشير متوافقة مع الآيباد' : 'تسجيل طلب جديد';
+  const badgeLabel = isCashier ? tl('شاشة الكاشير') : tl('فريق الصالة');
+  const heroTitle = isCashier ? tl('شاشة كاشير متوافقة مع الآيباد') : tl('تسجيل طلب جديد');
   const heroSubtitle = isCashier
-    ? 'يتكيف تلقائياً مع الهاتف ويتحول لعمودين بمجرد تشغيله على آيباد.'
-    : 'اربط الطلب بالمطبخ واستلم إشعاراً لحظة انتهاء الشيف.';
+    ? tl('يتكيف تلقائياً مع الهاتف ويتحول لعمودين بمجرد تشغيله على آيباد.')
+    : tl('اربط الطلب بالمطبخ واستلم إشعاراً لحظة انتهاء الشيف.');
   const heroHelper = isCashier
-    ? 'واجهة مستوحاة من صفحة الترحيب مع حقل السيارة للطلبات الخارجية.'
-    : 'الشيف، الويتر، والكاشير يشاركون نفس هذا النموذج دون إعداد إضافي.';
+    ? tl('واجهة مستوحاة من صفحة الترحيب مع حقل السيارة للطلبات الخارجية.')
+    : tl('الشيف، الويتر، والكاشير يشاركون نفس هذا النموذج دون إعداد إضافي.');
   const readyOrders = useMemo(() => orders.filter((order) => order.status === 'ready'), [orders]);
   const newKitchenOrders = useMemo(() => orders.filter((order) => order.status === 'new'), [orders]);
   const preparingOrders = useMemo(
@@ -73,10 +75,14 @@ export default function WaiterScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     const message =
       unseen.length === 1
-        ? `الطلب رقم ${unseen[0].id.slice(-5).toUpperCase()} جاهز للاستلام من المطبخ.`
-        : `${unseen.length} طلبات جاهزة للاستلام من المطبخ.`;
-    Alert.alert('تنبيه من المطبخ', message);
-  }, [readyOrders]);
+        ? t('waiter.readySingle', 'الطلب رقم {orderId} جاهز للاستلام من المطبخ.', {
+            orderId: unseen[0].id.slice(-5).toUpperCase(),
+          })
+        : t('waiter.readyMultiple', '{count} طلبات جاهزة للاستلام من المطبخ.', {
+            count: unseen.length,
+          });
+    Alert.alert(t('waiter.kitchenAlertTitle', 'تنبيه من المطبخ'), message);
+  }, [readyOrders, t]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [tableNumber, setTableNumber] = useState('');
@@ -112,9 +118,9 @@ export default function WaiterScreen() {
     (!requiresCarNumber || trimmedCarNumber.length >= 3);
 
   const disabledReason = (() => {
-    if (cartItems.length === 0) return 'أضف عناصر من القائمة أولاً';
-    if (requiresTableNumber && !trimmedTableNumber) return 'أدخل رقم الطاولة';
-    if (requiresCarNumber && trimmedCarNumber.length < 3) return 'أدخل رقم السيارة للطلبات الخارجية';
+    if (cartItems.length === 0) return tl('أضف عناصر من القائمة أولاً');
+    if (requiresTableNumber && !trimmedTableNumber) return tl('أدخل رقم الطاولة');
+    if (requiresCarNumber && trimmedCarNumber.length < 3) return tl('أدخل رقم السيارة للطلبات الخارجية');
     return null;
   })();
 
@@ -177,10 +183,16 @@ export default function WaiterScreen() {
           quantity: item.quantity,
         })),
       });
-      Alert.alert('تم إرسال الطلب', 'وصل الطلب للمطبخ وانحفظ في قاعدة البيانات');
+      Alert.alert(
+        t('waiter.submitSuccessTitle', 'تم إرسال الطلب'),
+        t('waiter.submitSuccessMessage', 'وصل الطلب للمطبخ وانحفظ في قاعدة البيانات'),
+      );
       resetForm();
     } catch (error) {
-      Alert.alert('خطأ في إرسال الطلب', error instanceof Error ? error.message : 'حاول مرة أخرى');
+      Alert.alert(
+        t('waiter.submitErrorTitle', 'خطأ في إرسال الطلب'),
+        error instanceof Error ? error.message : t('common.tryAgain', 'حاول مرة أخرى'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -199,7 +211,7 @@ export default function WaiterScreen() {
             </View>
             <View style={styles.dataSourceChip}>
               <Text style={styles.chipText}>
-                {dataSourceId === 'supabase' ? 'وضع الإنتاج' : 'وضع تجريبي بدون إنترنت'}
+                {dataSourceId === 'supabase' ? tl('وضع الإنتاج') : tl('وضع تجريبي بدون إنترنت')}
               </Text>
             </View>
           </View>
@@ -213,16 +225,16 @@ export default function WaiterScreen() {
         <View style={[styles.layout, isSplitLayout && styles.layoutTablet]}>
           <View style={[styles.column, isSplitLayout && styles.primaryColumnTablet]}>
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>بيانات العميل</Text>
+              <Text style={styles.sectionTitle}>{tl('بيانات العميل')}</Text>
               <TextInput
-                placeholder="اسم العميل"
+                placeholder={tl('اسم العميل')}
                 placeholderTextColor={theme.muted}
                 value={customerName}
                 onChangeText={setCustomerName}
                 style={styles.input}
               />
               <TextInput
-                placeholder="رقم الجوال"
+                placeholder={tl('رقم الجوال')}
                 placeholderTextColor={theme.muted}
                 value={customerPhone}
                 onChangeText={setCustomerPhone}
@@ -230,7 +242,7 @@ export default function WaiterScreen() {
                 style={styles.input}
               />
 
-              <Text style={styles.sectionTitle}>طريقة الخدمة</Text>
+              <Text style={styles.sectionTitle}>{tl('طريقة الخدمة')}</Text>
               <View style={styles.segment}>
                 {FULFILLMENT_OPTIONS.map((option) => {
                   const selected = option.value === fulfillmentType;
@@ -240,7 +252,7 @@ export default function WaiterScreen() {
                       style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
                       onPress={() => setFulfillmentType(option.value)}>
                       <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
-                        {option.label}
+                        {tl(option.label)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -249,7 +261,7 @@ export default function WaiterScreen() {
 
             {fulfillmentType === 'dine-in' ? (
               <TextInput
-                placeholder="رقم الطاولة"
+                placeholder={tl('رقم الطاولة')}
                 placeholderTextColor={theme.muted}
                 value={tableNumber}
                 onChangeText={setTableNumber}
@@ -258,7 +270,7 @@ export default function WaiterScreen() {
             ) : null}
             {fulfillmentType === 'pickup' ? (
               <TextInput
-                placeholder="رقم السيارة (مثال: ع م 1234)"
+                placeholder={tl('رقم السيارة (مثال: ع م 1234)')}
                 placeholderTextColor={theme.muted}
                 value={carNumber}
                 onChangeText={setCarNumber}
@@ -266,7 +278,7 @@ export default function WaiterScreen() {
               />
             ) : null}
             <TextInput
-              placeholder="ملاحظات خاصة (اختياري)"
+              placeholder={tl('ملاحظات خاصة (اختياري)')}
               placeholderTextColor={theme.muted}
               value={note}
               onChangeText={setNote}
@@ -276,9 +288,9 @@ export default function WaiterScreen() {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>قائمة المطعم</Text>
+              <Text style={styles.sectionTitle}>{tl('قائمة المطعم')}</Text>
               {Object.keys(groupedMenu).length === 0 ? (
-                <Text style={styles.mutedText}>لم يتم تعريف القائمة بعد.</Text>
+                <Text style={styles.mutedText}>{tl('لم يتم تعريف القائمة بعد.')}</Text>
               ) : (
                 Object.entries(groupedMenu).map(([category, items]) => (
                   <View key={category} style={styles.menuSection}>
@@ -288,7 +300,10 @@ export default function WaiterScreen() {
                         <View>
                           <Text style={styles.menuItemName}>{item.name}</Text>
                           <Text style={styles.mutedText}>
-                            {formatCurrency(item.price)} • {item.prepTimeMinutes} د
+                            {t('waiter.priceMinutes', '{price} • {minutes} د', {
+                              price: formatCurrency(item.price),
+                              minutes: item.prepTimeMinutes,
+                            })}
                           </Text>
                         </View>
                         <TouchableOpacity
@@ -298,7 +313,9 @@ export default function WaiterScreen() {
                             styles.addButton,
                             !item.isAvailable && styles.addButtonDisabled,
                           ]}>
-                          <Text style={styles.addButtonText}>{item.isAvailable ? '+ أضف' : 'متوقف'}</Text>
+                          <Text style={styles.addButtonText}>
+                            {item.isAvailable ? tl('+ أضف') : tl('متوقف')}
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -311,11 +328,11 @@ export default function WaiterScreen() {
           <View style={[styles.column, styles.summaryColumn, isSplitLayout && styles.summaryColumnTablet]}>
             <View style={styles.card}>
               <View style={styles.summaryHeader}>
-                <Text style={styles.sectionTitle}>ملخص الطلب</Text>
+                <Text style={styles.sectionTitle}>{tl('ملخص الطلب')}</Text>
                 <Text style={styles.totalLabel}>{formatCurrency(orderTotal)}</Text>
               </View>
               {cartItems.length === 0 ? (
-                <Text style={styles.mutedText}>أضف عناصر من القائمة لبدء الطلب.</Text>
+                <Text style={styles.mutedText}>{tl('أضف عناصر من القائمة لبدء الطلب.')}</Text>
               ) : (
                 cartItems.map((item) => (
                   <View key={item.menuItemId} style={styles.cartRow}>
@@ -332,7 +349,7 @@ export default function WaiterScreen() {
                         <Text style={styles.iconButton}>+</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => handleRemoveItem(item.menuItemId!)}>
-                        <Text style={styles.removeText}>حذف</Text>
+                        <Text style={styles.removeText}>{tl('حذف')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -343,7 +360,7 @@ export default function WaiterScreen() {
                 disabled={!isFormValid || isSubmitting}
                 onPress={handleSubmit}>
                 <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال الطلب للمطبخ'}
+                  {isSubmitting ? tl('جارٍ الإرسال...') : tl('إرسال الطلب للمطبخ')}
                 </Text>
               </TouchableOpacity>
               {!isFormValid && disabledReason ? (
@@ -353,16 +370,16 @@ export default function WaiterScreen() {
 
             <View style={styles.card}>
               <View style={styles.summaryHeader}>
-                <Text style={styles.sectionTitle}>تنبيهات المطبخ</Text>
+                <Text style={styles.sectionTitle}>{tl('تنبيهات المطبخ')}</Text>
                 <Text style={styles.totalLabel}>
-                  {readyOrders.length > 0 ? `${readyOrders.length} جاهز` : 'متزامن لحظياً'}
+                  {readyOrders.length > 0 ? `${readyOrders.length} ${tl('جاهز')}` : tl('متزامن لحظياً')}
                 </Text>
               </View>
               <View style={styles.statusRow}>
                 {[
-                  { label: 'جديد', value: newKitchenOrders.length, color: theme.warning },
-                  { label: 'قيد التحضير', value: preparingOrders.length, color: theme.primary },
-                  { label: 'جاهز', value: readyOrders.length, color: theme.success },
+                  { label: tl('جديد'), value: newKitchenOrders.length, color: theme.warning },
+                  { label: tl('قيد التحضير'), value: preparingOrders.length, color: theme.primary },
+                  { label: tl('جاهز'), value: readyOrders.length, color: theme.success },
                 ].map((pill) => (
                   <View key={pill.label} style={[styles.statusPill, { borderColor: pill.color }]}>
                     <Text style={styles.statusPillLabel}>{pill.label}</Text>
@@ -371,7 +388,7 @@ export default function WaiterScreen() {
                 ))}
               </View>
               {readyOrders.length === 0 ? (
-                <Text style={styles.mutedText}>بانتظار تحديث من الشيف...</Text>
+                <Text style={styles.mutedText}>{tl('بانتظار تحديث من الشيف...')}</Text>
               ) : (
                 <View style={styles.readyList}>
                   {readyOrders.slice(0, 3).map((order) => (
@@ -380,31 +397,34 @@ export default function WaiterScreen() {
                         <Text style={styles.menuItemName}>{order.customer.fullName}</Text>
                         <Text style={styles.mutedText}>
                           {order.fulfillmentType === 'dine-in'
-                            ? `طاولة ${order.tableNumber ?? '-'}`
+                            ? `${tl('طاولة')} ${order.tableNumber ?? '-'}`
                             : order.fulfillmentType === 'pickup'
-                              ? 'استلام'
-                              : 'توصيل'}
+                              ? tl('استلام')
+                              : tl('توصيل')}
                         </Text>
-                        {order.carNumber ? <Text style={styles.carMeta}>سيارة: {order.carNumber}</Text> : null}
+                        {order.carNumber ? (
+                          <Text style={styles.carMeta}>
+                            {tl('سيارة')}: {order.carNumber}
+                          </Text>
+                        ) : null}
                       </View>
                       <View style={styles.readyBadge}>
-                        <Text style={styles.readyBadgeText}>جاهز</Text>
+                        <Text style={styles.readyBadgeText}>{tl('جاهز')}</Text>
                       </View>
                     </View>
                   ))}
                 </View>
               )}
               <Text style={styles.kitchenNote}>
-                بمجرد ضغط الشيف على «جاهز» يصل الإشعار للكاشير والويتر في نفس اللحظة.
+                {tl('بمجرد ضغط الشيف على «جاهز» يصل الإشعار للكاشير والويتر في نفس اللحظة.')}
               </Text>
             </View>
 
             {isCashier ? (
               <View style={styles.card}>
-                <Text style={styles.sectionTitle}>إرشادات شاشة الآيباد</Text>
+                <Text style={styles.sectionTitle}>{tl('إرشادات شاشة الآيباد')}</Text>
                 <Text style={styles.mutedText}>
-                  صممت الأعمدة لتكون على يسار (القائمة) ويمين (الملخص) الشاشة، ويمكنك تشغيلها على آيباد 11"
-                  دون الحاجة لتكبير إضافي.
+                  {tl('صممت الأعمدة لتكون على يسار (القائمة) ويمين (الملخص) الشاشة، ويمكنك تشغيلها على آيباد 11" دون الحاجة لتكبير إضافي.')}
                 </Text>
               </View>
             ) : null}

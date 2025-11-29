@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { LanguageProvider } from '@/providers/language-provider';
 import { SmartAppProvider } from '@/providers/smart-app-provider';
 import { StaffSessionProvider } from '@/providers/staff-session-provider';
 import { ThemeProvider, useTheme } from '@/providers/theme-provider';
@@ -31,12 +32,14 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <StaffSessionProvider>
-        <SmartAppProvider>
-          <RootLayoutContent />
-        </SmartAppProvider>
-      </StaffSessionProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <StaffSessionProvider>
+          <SmartAppProvider>
+            <RootLayoutContent />
+          </SmartAppProvider>
+        </StaffSessionProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }

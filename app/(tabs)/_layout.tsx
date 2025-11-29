@@ -6,31 +6,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useSmartApp } from '@/providers/smart-app-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
+import { useTranslation } from '@/providers/language-provider';
 
 export default function TabLayout() {
   const theme = useThemeColors();
+  const { t } = useTranslation();
   const { session, isHydrating, isOnboardingRequired } = useStaffSession();
   const { orders } = useSmartApp();
-
-  if (isHydrating) {
-    return null;
-  }
-
-  if (!session) {
-    return <Redirect href="/login" />;
-  }
-
-  if (session.isOwner && isOnboardingRequired) {
-    return <Redirect href="/onboarding" />;
-  }
-
-  const isWaiter = session.role === 'waiter' || session.role === 'cashier';
-  const isChef = session.role === 'chef';
-  const isManager = session.role === 'manager';
-  const canSeeCustomers = session.role !== 'waiter' && session.role !== 'chef';
-  const readyCount = orders.filter((order) => order.status === 'ready').length;
-  const kitchenQueue = orders.filter((order) => order.status === 'new' || order.status === 'preparing');
-  const kitchenQueueCount = kitchenQueue.length;
 
   const tabBarStyle = useMemo(
     () => ({
@@ -51,6 +33,26 @@ export default function TabLayout() {
     }),
     [theme],
   );
+
+  if (isHydrating) {
+    return null;
+  }
+
+  if (!session) {
+    return <Redirect href="/login" />;
+  }
+
+  if (session.isOwner && isOnboardingRequired) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  const isWaiter = session.role === 'waiter' || session.role === 'cashier';
+  const isChef = session.role === 'chef';
+  const isManager = session.role === 'manager';
+  const canSeeCustomers = session.role !== 'waiter' && session.role !== 'chef';
+  const readyCount = orders.filter((order) => order.status === 'ready').length;
+  const kitchenQueue = orders.filter((order) => order.status === 'new' || order.status === 'preparing');
+  const kitchenQueueCount = kitchenQueue.length;
 
   return (
     <Tabs
@@ -74,7 +76,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'طلبات الصالة',
+          title: t('tabs.orders', 'طلبات الصالة'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
           tabBarBadge: isWaiter && readyCount > 0 ? (readyCount > 9 ? '9+' : readyCount) : undefined,
           tabBarBadgeStyle: {
@@ -89,7 +91,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="kitchen"
         options={{
-          title: 'شاشة المطبخ',
+          title: t('tabs.kitchen', 'شاشة المطبخ'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="tray.full.fill" color={color} />,
           tabBarBadge: isChef && kitchenQueueCount > 0 ? kitchenQueueCount : undefined,
           tabBarBadgeStyle: {
@@ -103,7 +105,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="menu-management"
         options={{
-          title: 'إدارة المنيو',
+          title: t('tabs.menu', 'إدارة المنيو'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="list.bullet.clipboard.fill" color={color} />,
           href: isManager ? '/(tabs)/menu-management' : null,
         }}
@@ -113,7 +115,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'لوحة التحكم',
+          title: t('tabs.dashboard', 'لوحة التحكم'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
         }}
       />
@@ -122,7 +124,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="customers"
         options={{
-          title: 'العملاء',
+          title: t('tabs.customers', 'العملاء'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.3.fill" color={color} />,
           href: canSeeCustomers ? '/(tabs)/customers' : null,
         }}
@@ -132,7 +134,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'الإعدادات',
+          title: t('tabs.settings', 'الإعدادات'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />

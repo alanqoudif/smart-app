@@ -7,6 +7,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { getInitialRouteForRole } from '@/lib/navigation';
+import { useTranslation } from '@/providers/language-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
 import { FulfillmentType } from '@/types';
 
@@ -22,11 +23,19 @@ const PRICE_OPTIONS = [
   { label: 'فاخر', value: 'premium' },
 ];
 
-const CUISINE_OPTIONS = ['سعودي', 'إيطالي', 'قهوة مختصة', 'حلويات', 'مأكولات عالمية', 'مخبوزات'];
+const CUISINE_OPTIONS = [
+  { key: 'saudi', label: 'سعودي' },
+  { key: 'italian', label: 'إيطالي' },
+  { key: 'coffee', label: 'قهوة مختصة' },
+  { key: 'desserts', label: 'حلويات' },
+  { key: 'international', label: 'مأكولات عالمية' },
+  { key: 'bakery', label: 'مخبوزات' },
+];
 
 export default function OnboardingScreen() {
   const theme = useThemeColors();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t, isRTL } = useTranslation();
+  const styles = useMemo(() => createStyles(theme, isRTL), [theme, isRTL]);
   const router = useRouter();
   const { session, restaurantProfile, onboardingAnswers, completeOnboarding } = useStaffSession();
 
@@ -36,6 +45,8 @@ export default function OnboardingScreen() {
   const [conceptVision, setConceptVision] = useState('');
   const [guestNotes, setGuestNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
 
   useEffect(() => {
     if (onboardingAnswers) {
@@ -65,7 +76,7 @@ export default function OnboardingScreen() {
 
   const handleSubmit = async () => {
     if (serviceModes.length === 0) {
-      Alert.alert('اختر طريقة تقديم واحدة على الأقل');
+      Alert.alert(t('onboarding.serviceMissing', 'اختر طريقة تقديم واحدة على الأقل'));
       return;
     }
 
@@ -80,7 +91,10 @@ export default function OnboardingScreen() {
       });
       router.replace(getInitialRouteForRole(session.role));
     } catch (error) {
-      Alert.alert('تعذر حفظ الإجابات', error instanceof Error ? error.message : 'حاول مرة أخرى');
+      Alert.alert(
+        t('onboarding.errorTitle', 'تعذر حفظ الإجابات'),
+        error instanceof Error ? error.message : t('common.tryAgain', 'حاول مرة أخرى'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -101,15 +115,18 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>خصص تجربة مطعمك</Text>
+          <Text style={styles.title}>{t('onboarding.title', 'خصص تجربة مطعمك')}</Text>
           <Text style={styles.subtitle}>
-            هذه الأسئلة السريعة ستساعدنا على إظهار شاشات ولوحات تناسب نوع نشاطك وأهدافك. يمكنك تعديلها لاحقاً من الإعدادات.
+            {t(
+              'onboarding.subtitle',
+              'هذه الأسئلة السريعة ستساعدنا على إظهار شاشات ولوحات تناسب نوع نشاطك وأهدافك. يمكنك تعديلها لاحقاً من الإعدادات.',
+            )}
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>طرق تقديم الطلبات</Text>
-          <View style={styles.optionsRow}>
+          <Text style={styles.cardTitle}>{t('onboarding.serviceTitle', 'طرق تقديم الطلبات')}</Text>
+          <View style={[styles.optionsRow, { flexDirection: rowDirection }]}>
             {SERVICE_OPTIONS.map((option) => {
               const selected = serviceModes.includes(option.value);
               return (
@@ -117,7 +134,9 @@ export default function OnboardingScreen() {
                   key={option.value}
                   style={[styles.optionChip, selected && styles.optionChipActive]}
                   onPress={() => toggleServiceMode(option.value)}>
-                  <Text style={[styles.optionChipText, selected && { color: theme.primary }]}>{option.label}</Text>
+                  <Text style={[styles.optionChipText, selected && { color: theme.primary }, { textAlign }]}>
+                    {t(`onboarding.service.${option.value}`, option.label)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -125,8 +144,8 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>السعر المستهدف</Text>
-          <View style={styles.optionsRow}>
+          <Text style={styles.cardTitle}>{t('onboarding.priceTitle', 'السعر المستهدف')}</Text>
+          <View style={[styles.optionsRow, { flexDirection: rowDirection }]}>
             {PRICE_OPTIONS.map((option) => {
               const selected = pricePosition === option.value;
               return (
@@ -134,7 +153,9 @@ export default function OnboardingScreen() {
                   key={option.value}
                   style={[styles.optionCard, selected && styles.optionCardActive]}
                   onPress={() => setPricePosition(option.value as typeof pricePosition)}>
-                  <Text style={[styles.optionLabel, selected && { color: theme.primary }]}>{option.label}</Text>
+                  <Text style={[styles.optionLabel, selected && { color: theme.primary }, { textAlign }]}>
+                    {t(`onboarding.price.${option.value}`, option.label)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -142,16 +163,18 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>هوية المطبخ</Text>
-          <View style={styles.tagsRow}>
+          <Text style={styles.cardTitle}>{t('onboarding.cuisineTitle', 'هوية المطبخ')}</Text>
+          <View style={[styles.tagsRow, { flexDirection: rowDirection }]}>
             {CUISINE_OPTIONS.map((item) => {
-              const selected = cuisineFocus.includes(item);
+              const selected = cuisineFocus.includes(item.label);
               return (
                 <TouchableOpacity
-                  key={item}
+                  key={item.key}
                   style={[styles.tag, selected && styles.tagActive]}
-                  onPress={() => toggleCuisine(item)}>
-                  <Text style={[styles.tagText, selected && { color: theme.primary }]}>{item}</Text>
+                  onPress={() => toggleCuisine(item.label)}>
+                  <Text style={[styles.tagText, selected && { color: theme.primary }, { textAlign }]}>
+                    {t(`onboarding.cuisine.${item.key}`, item.label)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -159,21 +182,41 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>ما الذي يميز تجربتك؟</Text>
+          <Text style={styles.cardTitle}>{t('onboarding.visionTitle', 'ما الذي يميز تجربتك؟')}</Text>
           <TextInput
             value={conceptVision}
             onChangeText={setConceptVision}
-            placeholder="مثال: مطعم سعودي مع لمسة عصرية وسرعة في الخدمة"
+            placeholder={t('onboarding.visionPlaceholder', 'مثال: مطعم سعودي مع لمسة عصرية وسرعة في الخدمة')}
             multiline
-            style={[styles.input, { height: 110 }]}
+            style={[
+              styles.input,
+              {
+                height: 110,
+                borderColor: theme.border,
+                color: theme.text,
+                backgroundColor: theme.background,
+                textAlign,
+              },
+            ]}
+            placeholderTextColor={theme.muted}
           />
-          <Text style={styles.label}>ملاحظات إضافية للضيوف أو الطاقم</Text>
+          <Text style={styles.label}>{t('onboarding.notesLabel', 'ملاحظات إضافية للضيوف أو الطاقم')}</Text>
           <TextInput
             value={guestNotes}
             onChangeText={setGuestNotes}
-            placeholder="اختياري"
+            placeholder={t('onboarding.notesPlaceholder', 'اختياري')}
             multiline
-            style={[styles.input, { height: 80 }]}
+            style={[
+              styles.input,
+              {
+                height: 80,
+                borderColor: theme.border,
+                color: theme.text,
+                backgroundColor: theme.background,
+                textAlign,
+              },
+            ]}
+            placeholderTextColor={theme.muted}
           />
         </View>
 
@@ -181,19 +224,24 @@ export default function OnboardingScreen() {
           style={[styles.primaryBtn, isSubmitting && { backgroundColor: theme.border }]}
           disabled={isSubmitting}
           onPress={handleSubmit}>
-          <Text style={styles.primaryBtnText}>{isSubmitting ? 'جارٍ الحفظ...' : 'حفظ والانتقال للوحة'}</Text>
+          <Text style={styles.primaryBtnText}>
+            {isSubmitting ? t('onboarding.saving', 'جارٍ الحفظ...') : t('onboarding.submit', 'حفظ والانتقال للوحة')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-          <Text style={styles.skipText}>التخطي حالياً</Text>
+          <Text style={styles.skipText}>{t('onboarding.skip', 'التخطي حالياً')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: typeof Colors.light) =>
-  StyleSheet.create({
+const createStyles = (theme: typeof Colors.light, isRTL: boolean) => {
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
+  const alignItems = isRTL ? 'flex-end' : 'flex-start';
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.backgroundAlt,
@@ -209,11 +257,11 @@ const createStyles = (theme: typeof Colors.light) =>
       fontSize: 26,
       fontWeight: '800',
       color: theme.text,
-      textAlign: 'right',
+      textAlign,
     },
     subtitle: {
       color: theme.muted,
-      textAlign: 'right',
+      textAlign,
       lineHeight: 22,
     },
     card: {
@@ -228,10 +276,10 @@ const createStyles = (theme: typeof Colors.light) =>
       fontWeight: '700',
       color: theme.text,
       fontSize: 18,
-      textAlign: 'right',
+      textAlign,
     },
     optionsRow: {
-      flexDirection: 'row-reverse',
+      flexDirection: rowDirection,
       flexWrap: 'wrap',
       gap: 10,
     },
@@ -250,6 +298,7 @@ const createStyles = (theme: typeof Colors.light) =>
     optionChipText: {
       color: theme.text,
       fontWeight: '600',
+      textAlign,
     },
     optionCard: {
       flex: 1,
@@ -257,8 +306,9 @@ const createStyles = (theme: typeof Colors.light) =>
       borderColor: theme.border,
       borderRadius: 16,
       padding: 14,
-      alignItems: 'center',
+      alignItems,
       backgroundColor: theme.backgroundAlt,
+      gap: 6,
     },
     optionCardActive: {
       borderColor: theme.primary,
@@ -267,12 +317,13 @@ const createStyles = (theme: typeof Colors.light) =>
     optionLabel: {
       fontWeight: '700',
       color: theme.text,
+      textAlign,
     },
     tagsRow: {
-      flexDirection: 'row',
+      flexDirection: rowDirection,
       flexWrap: 'wrap',
       gap: 8,
-      justifyContent: 'flex-end',
+      justifyContent: isRTL ? 'flex-end' : 'flex-start',
     },
     tag: {
       paddingHorizontal: 12,
@@ -289,21 +340,19 @@ const createStyles = (theme: typeof Colors.light) =>
     tagText: {
       color: theme.text,
       fontWeight: '600',
+      textAlign,
     },
     input: {
       borderWidth: 1,
-      borderColor: theme.border,
       borderRadius: 16,
       paddingHorizontal: 12,
       paddingVertical: 10,
       textAlignVertical: 'top',
-      textAlign: 'right',
-      color: theme.text,
     },
     label: {
       fontWeight: '600',
       color: theme.text,
-      textAlign: 'right',
+      textAlign,
     },
     primaryBtn: {
       backgroundColor: theme.primary,
@@ -315,6 +364,7 @@ const createStyles = (theme: typeof Colors.light) =>
       color: '#fff',
       fontWeight: '700',
       fontSize: 16,
+      textAlign,
     },
     skipBtn: {
       alignItems: 'center',
@@ -323,5 +373,7 @@ const createStyles = (theme: typeof Colors.light) =>
     skipText: {
       color: theme.muted,
       fontWeight: '600',
+      textAlign,
     },
   });
+};

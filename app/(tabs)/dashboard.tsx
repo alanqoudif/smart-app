@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/format';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useSmartApp } from '@/providers/smart-app-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
-import { Order, OrderStatus, StaffRole } from '@/types';
+import { OrderStatus, StaffRole } from '@/types';
 
 const METRIC_LABELS: {
   key: keyof ReturnType<typeof useSmartApp>['metrics'];

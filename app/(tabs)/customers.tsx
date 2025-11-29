@@ -88,6 +88,7 @@ export default function CustomersScreen() {
         <TextInput
           placeholder="ابحث بالاسم أو الجوال"
           style={styles.input}
+          placeholderTextColor={theme.muted}
           value={search}
           onChangeText={setSearch}
         />
@@ -161,6 +162,8 @@ const createStyles = (theme: typeof Colors.light) =>
       borderColor: theme.border,
       paddingHorizontal: 14,
       paddingVertical: 10,
+      color: theme.text,
+      backgroundColor: theme.card,
     },
     card: {
       backgroundColor: theme.card,

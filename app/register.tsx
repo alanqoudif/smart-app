@@ -14,8 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRouter } from 'expo-router';
 
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { Colors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useTranslation } from '@/providers/language-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
 import { RestaurantExperience } from '@/types';
 
@@ -25,7 +27,15 @@ const EXPERIENCE_OPTIONS: { label: string; value: RestaurantExperience; descript
   { label: 'هجين', value: 'hybrid', description: 'خليط بين المطعم والكوفي أو مطبخ سحابي' },
 ];
 
-const SPECIALTY_OPTIONS = ['مشاوي', 'أطباق شعبية', 'قهوة مختصة', 'حلويات', 'باستا', 'برجر', 'مأكولات بحرية'];
+const SPECIALTY_OPTIONS = [
+  { key: 'grills', label: 'مشاوي' },
+  { key: 'traditional', label: 'أطباق شعبية' },
+  { key: 'coffee', label: 'قهوة مختصة' },
+  { key: 'desserts', label: 'حلويات' },
+  { key: 'pasta', label: 'باستا' },
+  { key: 'burger', label: 'برجر' },
+  { key: 'seafood', label: 'مأكولات بحرية' },
+];
 
 const slugify = (value: string) =>
   value
@@ -36,7 +46,8 @@ const slugify = (value: string) =>
 
 export default function RegisterScreen() {
   const theme = useThemeColors();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t, isRTL } = useTranslation();
+  const styles = useMemo(() => createStyles(theme, isRTL), [theme, isRTL]);
   const router = useRouter();
   const { registerRestaurant } = useStaffSession();
   const [restaurantName, setRestaurantName] = useState('');
@@ -48,6 +59,8 @@ export default function RegisterScreen() {
   const [experienceType, setExperienceType] = useState<RestaurantExperience>('restaurant');
   const [specialties, setSpecialties] = useState<string[]>(['مشاوي']);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
 
   useEffect(() => {
     if (!codeEdited) {
@@ -61,11 +74,17 @@ export default function RegisterScreen() {
 
   const handleSubmit = async () => {
     if (!restaurantName.trim() || !ownerName.trim() || !email.trim()) {
-      Alert.alert('بيانات ناقصة', 'املأ بيانات المطعم والمالك أولاً');
+      Alert.alert(
+        t('register.missingTitle', 'بيانات ناقصة'),
+        t('register.missingMessage', 'املأ بيانات المطعم والمالك أولاً'),
+      );
       return;
     }
     if (password.trim().length < 6) {
-      Alert.alert('كلمة المرور ضعيفة', 'اختر كلمة مرور مكونة من 6 أحرف على الأقل');
+      Alert.alert(
+        t('register.passwordWeakTitle', 'كلمة المرور ضعيفة'),
+        t('register.passwordWeakMessage', 'اختر كلمة مرور مكونة من 6 أحرف على الأقل'),
+      );
       return;
     }
 
@@ -82,7 +101,10 @@ export default function RegisterScreen() {
       });
       router.replace('/onboarding');
     } catch (error) {
-      Alert.alert('تعذر إنشاء المطعم', error instanceof Error ? error.message : 'حاول مرة أخرى');
+      Alert.alert(
+        t('register.errorTitle', 'تعذر إنشاء المطعم'),
+        error instanceof Error ? error.message : t('common.tryAgain', 'حاول مرة أخرى'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -92,16 +114,40 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.switcherRow}>
+            <LanguageSwitcher />
+          </View>
           <View style={styles.header}>
-            <Text style={styles.title}>إنشاء مطعمك</Text>
-            <Text style={styles.subtitle}>هذه الواجهة التعريفية تسمح لك بتجهيز المطعم قبل منح الصلاحيات للطاقم</Text>
+            <Text style={styles.title}>{t('register.title', 'إنشاء مطعمك')}</Text>
+            <Text style={styles.subtitle}>
+              {t(
+                'register.subtitle',
+                'هذه الواجهة التعريفية تسمح لك بتجهيز المطعم قبل منح الصلاحيات للطاقم',
+              )}
+            </Text>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>بيانات المطعم</Text>
-            <Text style={styles.label}>اسم المطعم</Text>
-            <TextInput value={restaurantName} onChangeText={setRestaurantName} placeholder="مثال: مطعم سما" style={styles.input} />
-            <Text style={styles.label}>كود المطعم (يُشارك مع الموظفين)</Text>
+            <Text style={styles.cardTitle}>{t('register.restaurantSection', 'بيانات المطعم')}</Text>
+            <Text style={styles.label}>{t('register.restaurantName', 'اسم المطعم')}</Text>
+            <TextInput
+              value={restaurantName}
+              onChangeText={setRestaurantName}
+              placeholder={t('register.restaurantPlaceholder', 'مثال: مطعم سما')}
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.background,
+                  textAlign,
+                },
+              ]}
+              placeholderTextColor={theme.muted}
+            />
+            <Text style={styles.label}>
+              {t('register.restaurantCodeLabel', 'كود المطعم (يُشارك مع الموظفين)')}
+            </Text>
             <View style={styles.codeRow}>
               <TextInput
                 value={restaurantCode}
@@ -109,9 +155,19 @@ export default function RegisterScreen() {
                   setCodeEdited(true);
                   setRestaurantCode(value);
                 }}
-                placeholder="sama-restaurant"
+                placeholder={t('register.codePlaceholder', 'sama-restaurant')}
                 autoCapitalize="none"
-                style={[styles.input, { flex: 1 }]}
+                style={[
+                  styles.input,
+                  {
+                    flex: 1,
+                    borderColor: theme.border,
+                    color: theme.text,
+                    backgroundColor: theme.background,
+                    textAlign,
+                  },
+                ]}
+                placeholderTextColor={theme.muted}
               />
               <TouchableOpacity
                 style={styles.chipButton}
@@ -119,23 +175,68 @@ export default function RegisterScreen() {
                   setCodeEdited(false);
                   setRestaurantCode(slugify(restaurantName || 'restaurant'));
                 }}>
-                <Text style={styles.chipText}>اقتراح</Text>
+                <Text style={styles.chipText}>{t('register.codeSuggest', 'اقتراح')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>معلومات المالك</Text>
-            <Text style={styles.label}>اسم الأدمن</Text>
-            <TextInput value={ownerName} onChangeText={setOwnerName} placeholder="الاسم الكامل" style={styles.input} />
-            <Text style={styles.label}>البريد الإلكتروني</Text>
-            <TextInput value={email} onChangeText={setEmail} placeholder="name@restaurant.com" keyboardType="email-address" autoCapitalize="none" style={styles.input} />
-            <Text style={styles.label}>كلمة المرور</Text>
-            <TextInput value={password} onChangeText={setPassword} placeholder="••••••" secureTextEntry style={styles.input} />
+            <Text style={styles.cardTitle}>{t('register.ownerSection', 'معلومات المالك')}</Text>
+            <Text style={styles.label}>{t('register.ownerName', 'اسم الأدمن')}</Text>
+            <TextInput
+              value={ownerName}
+              onChangeText={setOwnerName}
+              placeholder={t('register.ownerNamePlaceholder', 'الاسم الكامل')}
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.background,
+                  textAlign,
+                },
+              ]}
+              placeholderTextColor={theme.muted}
+            />
+            <Text style={styles.label}>{t('register.ownerEmail', 'البريد الإلكتروني')}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="name@restaurant.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.background,
+                  textAlign,
+                },
+              ]}
+              placeholderTextColor={theme.muted}
+            />
+            <Text style={styles.label}>{t('register.ownerPassword', 'كلمة المرور')}</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••"
+              secureTextEntry
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.background,
+                  textAlign,
+                },
+              ]}
+              placeholderTextColor={theme.muted}
+            />
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>طبيعة النشاط</Text>
+            <Text style={styles.cardTitle}>{t('register.experienceTitle', 'طبيعة النشاط')}</Text>
             <View style={styles.optionList}>
               {EXPERIENCE_OPTIONS.map((option) => {
                 const selected = experienceType === option.value;
@@ -144,8 +245,13 @@ export default function RegisterScreen() {
                     key={option.value}
                     style={[styles.optionCard, selected && styles.optionCardActive]}
                     onPress={() => setExperienceType(option.value)}>
-                    <Text style={[styles.optionLabel, selected && { color: theme.primary }]}>{option.label}</Text>
-                    <Text style={styles.optionDescription}>{option.description}</Text>
+                    <Text
+                      style={[styles.optionLabel, selected && { color: theme.primary, textAlign }, { textAlign }]}>
+                      {t(`register.experience.${option.value}.label`, option.label)}
+                    </Text>
+                    <Text style={[styles.optionDescription, { textAlign }]}>
+                      {t(`register.experience.${option.value}.description`, option.description)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -153,16 +259,18 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>تخصصاتك</Text>
-            <View style={styles.tagsRow}>
+            <Text style={styles.cardTitle}>{t('register.specialtiesTitle', 'تخصصاتك')}</Text>
+            <View style={[styles.tagsRow, { flexDirection: rowDirection }]}>
               {SPECIALTY_OPTIONS.map((item) => {
-                const selected = specialties.includes(item);
+                const selected = specialties.includes(item.label);
                 return (
                   <TouchableOpacity
-                    key={item}
+                    key={item.key}
                     style={[styles.tag, selected && styles.tagActive]}
-                    onPress={() => toggleSpecialty(item)}>
-                    <Text style={[styles.tagText, selected && { color: theme.primary }]}>{item}</Text>
+                    onPress={() => toggleSpecialty(item.label)}>
+                    <Text style={[styles.tagText, selected && { color: theme.primary }, { textAlign }]}>
+                      {t(`register.specialties.${item.key}`, item.label)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -173,11 +281,15 @@ export default function RegisterScreen() {
             style={[styles.submitButton, isSubmitting && { backgroundColor: theme.border }]}
             disabled={isSubmitting}
             onPress={handleSubmit}>
-            <Text style={styles.submitText}>{isSubmitting ? 'جارٍ الإنشاء...' : 'احفظ واذهب للأسئلة'}</Text>
+            <Text style={styles.submitText}>
+              {isSubmitting
+                ? t('register.submitting', 'جارٍ الإنشاء...')
+                : t('register.submit', 'احفظ واذهب للأسئلة')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/login')}>
-            <Text style={styles.linkText}>لديك حساب؟ الرجوع لتسجيل الدخول</Text>
+            <Text style={styles.linkText}>{t('register.backToLogin', 'لديك حساب؟ الرجوع لتسجيل الدخول')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -185,8 +297,10 @@ export default function RegisterScreen() {
   );
 }
 
-const createStyles = (theme: typeof Colors.light) =>
-  StyleSheet.create({
+const createStyles = (theme: typeof Colors.light, isRTL: boolean) => {
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.backgroundAlt,
@@ -196,6 +310,9 @@ const createStyles = (theme: typeof Colors.light) =>
       gap: 16,
       paddingBottom: 60,
     },
+    switcherRow: {
+      marginBottom: 10,
+    },
     header: {
       gap: 6,
     },
@@ -203,11 +320,11 @@ const createStyles = (theme: typeof Colors.light) =>
       fontSize: 26,
       fontWeight: '800',
       color: theme.text,
-      textAlign: 'right',
+      textAlign,
     },
     subtitle: {
       color: theme.muted,
-      textAlign: 'right',
+      textAlign,
     },
     card: {
       backgroundColor: theme.card,
@@ -221,23 +338,21 @@ const createStyles = (theme: typeof Colors.light) =>
       fontWeight: '700',
       color: theme.text,
       fontSize: 18,
-      textAlign: 'right',
+      textAlign,
     },
     label: {
       fontWeight: '600',
       color: theme.text,
-      textAlign: 'right',
+      textAlign,
     },
     input: {
       borderWidth: 1,
-      borderColor: theme.border,
       borderRadius: 14,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      textAlign: 'right',
     },
     codeRow: {
-      flexDirection: 'row',
+      flexDirection: rowDirection,
       alignItems: 'center',
       gap: 8,
     },
@@ -250,6 +365,7 @@ const createStyles = (theme: typeof Colors.light) =>
     chipText: {
       color: theme.primary,
       fontWeight: '700',
+      textAlign,
     },
     optionList: {
       gap: 10,
@@ -268,19 +384,19 @@ const createStyles = (theme: typeof Colors.light) =>
     },
     optionLabel: {
       fontWeight: '700',
-      textAlign: 'right',
+      textAlign,
       color: theme.text,
     },
     optionDescription: {
       color: theme.muted,
-      textAlign: 'right',
+      textAlign,
       lineHeight: 18,
     },
     tagsRow: {
-      flexDirection: 'row',
+      flexDirection: rowDirection,
       flexWrap: 'wrap',
       gap: 8,
-      justifyContent: 'flex-end',
+      justifyContent: isRTL ? 'flex-end' : 'flex-start',
     },
     tag: {
       paddingHorizontal: 12,
@@ -297,6 +413,7 @@ const createStyles = (theme: typeof Colors.light) =>
     tagText: {
       color: theme.text,
       fontWeight: '600',
+      textAlign,
     },
     submitButton: {
       backgroundColor: theme.primary,
@@ -308,6 +425,7 @@ const createStyles = (theme: typeof Colors.light) =>
       color: '#fff',
       fontWeight: '700',
       fontSize: 16,
+      textAlign,
     },
     linkButton: {
       alignItems: 'center',
@@ -316,5 +434,7 @@ const createStyles = (theme: typeof Colors.light) =>
     linkText: {
       color: theme.primary,
       fontWeight: '700',
+      textAlign,
     },
   });
+};

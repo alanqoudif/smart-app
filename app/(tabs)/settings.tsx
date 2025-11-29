@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useTheme } from '@/providers/theme-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
+import { useTranslation } from '@/providers/language-provider';
 import { StaffRole } from '@/types';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
@@ -15,6 +17,9 @@ export default function SettingsScreen() {
   const { colorScheme, themeMode, setThemeMode } = useTheme();
   const { session, logout, staffAccounts, restaurantProfile, createStaffAccount, removeStaffAccount } = useStaffSession();
   const colors = Colors[colorScheme];
+  const { t, isRTL } = useTranslation();
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
   const router = useRouter();
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffRole, setNewStaffRole] = useState<StaffRole>('waiter');
@@ -24,15 +29,15 @@ export default function SettingsScreen() {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'waiter':
-        return 'ويتر';
+        return t('roles.waiter', 'ويتر');
       case 'chef':
-        return 'شيف';
+        return t('roles.chef', 'شيف');
       case 'manager':
-        return 'مدير المطعم';
+        return t('roles.manager', 'مدير المطعم');
       case 'cashier':
-        return 'كاشير';
+        return t('roles.cashier', 'كاشير');
       default:
-        return 'موظف';
+        return t('roles.member', 'موظف');
     }
   };
 
@@ -51,17 +56,23 @@ export default function SettingsScreen() {
     }
   };
 
-  const staffRoleOptions: { label: string; value: StaffRole }[] = [
-    { label: 'ويتر', value: 'waiter' },
-    { label: 'كاشير', value: 'cashier' },
-    { label: 'شيف', value: 'chef' },
-  ];
+  const staffRoleOptions: { label: string; value: StaffRole }[] = useMemo(
+    () => [
+      { label: t('roles.waiter', 'ويتر'), value: 'waiter' },
+      { label: t('roles.cashier', 'كاشير'), value: 'cashier' },
+      { label: t('roles.chef', 'شيف'), value: 'chef' },
+    ],
+    [t],
+  );
 
   const canManageStaff = Boolean(session?.isOwner);
 
   const handleCreateStaff = async () => {
     if (!newStaffPasscode.trim()) {
-      Alert.alert('أدخل كود الموظف', 'الكود يجب أن يتكون من 4 أحرف على الأقل');
+      Alert.alert(
+        t('settings.staff.missingPasscodeTitle', 'أدخل كود الموظف'),
+        t('settings.staff.missingPasscodeMessage', 'الكود يجب أن يتكون من 4 أحرف على الأقل'),
+      );
       return;
     }
     setIsSavingStaff(true);
@@ -73,36 +84,49 @@ export default function SettingsScreen() {
       });
       setNewStaffName('');
       setNewStaffPasscode('');
-      Alert.alert('تم إضافة الموظف', 'شارك الكود معه للدخول مباشرة');
+      Alert.alert(
+        t('settings.staff.addedTitle', 'تم إضافة الموظف'),
+        t('settings.staff.addedMessage', 'شارك الكود معه للدخول مباشرة'),
+      );
     } catch (error) {
-      Alert.alert('تعذر إضافة الموظف', error instanceof Error ? error.message : 'حاول مرة أخرى');
+      Alert.alert(
+        t('settings.staff.errorAddTitle', 'تعذر إضافة الموظف'),
+        error instanceof Error ? error.message : t('common.tryAgain', 'حاول مرة أخرى'),
+      );
     } finally {
       setIsSavingStaff(false);
     }
   };
 
   const handleRemoveStaff = (staffId: string, staffName: string) => {
-    Alert.alert('حذف موظف', `هل تريد حذف ${staffName}؟`, [
-      { text: 'إلغاء', style: 'cancel' },
+    Alert.alert(
+      t('settings.staff.removeTitle', 'حذف موظف'),
+      t('settings.staff.removeMessage', 'هل تريد حذف {name}؟', { name: staffName }),
+      [
+        { text: t('common.cancel', 'إلغاء'), style: 'cancel' },
       {
-        text: 'حذف',
+        text: t('common.delete', 'حذف'),
         style: 'destructive',
         onPress: async () => {
           try {
             await removeStaffAccount(staffId);
           } catch (error) {
-            Alert.alert('تعذر الحذف', error instanceof Error ? error.message : 'حاول مرة أخرى');
+            Alert.alert(
+              t('settings.staff.removeErrorTitle', 'تعذر الحذف'),
+              error instanceof Error ? error.message : t('common.tryAgain', 'حاول مرة أخرى'),
+            );
           }
         },
       },
-    ]);
+      ],
+    );
   };
 
   const handleLogout = () => {
-    Alert.alert('تسجيل الخروج', 'هل أنت متأكد من تسجيل الخروج؟', [
-      { text: 'إلغاء', style: 'cancel' },
+    Alert.alert(t('settings.logout.title', 'تسجيل الخروج'), t('settings.logout.message', 'هل أنت متأكد من تسجيل الخروج؟'), [
+      { text: t('common.cancel', 'إلغاء'), style: 'cancel' },
       {
-        text: 'تسجيل الخروج',
+        text: t('settings.logout.button', 'تسجيل الخروج'),
         style: 'destructive',
         onPress: async () => {
           await logout();
@@ -112,11 +136,14 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const themeOptions: { mode: ThemeMode; label: string; icon: string }[] = [
-    { mode: 'light', label: 'نهاري', icon: 'sun.max.fill' },
-    { mode: 'dark', label: 'ليلي', icon: 'moon.fill' },
-    { mode: 'auto', label: 'تلقائي', icon: 'sparkles' },
-  ];
+  const themeOptions: { mode: ThemeMode; label: string; icon: string }[] = useMemo(
+    () => [
+      { mode: 'light', label: t('settings.theme.light', 'نهاري'), icon: 'sun.max.fill' },
+      { mode: 'dark', label: t('settings.theme.dark', 'ليلي'), icon: 'moon.fill' },
+      { mode: 'auto', label: t('settings.theme.auto', 'تلقائي'), icon: 'sparkles' },
+    ],
+    [t],
+  );
 
   return (
     <ScrollView
@@ -124,14 +151,22 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>الإعدادات</Text>
+        <Text style={[styles.title, { color: colors.text, textAlign }]}>
+          {t('settings.title', 'الإعدادات')}
+        </Text>
+      </View>
+
+      <View style={styles.section}>
+        <LanguageSwitcher mode="inline" />
       </View>
 
       {/* Account Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>معلومات الحساب</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text, textAlign }]}>
+          {t('settings.account.title', 'معلومات الحساب')}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.accountInfo}>
+          <View style={[styles.accountInfo, { flexDirection: rowDirection }]}>
             <View
               style={[styles.avatarContainer, { backgroundColor: colors.primaryMuted }]}>
               <IconSymbol 
@@ -140,14 +175,23 @@ export default function SettingsScreen() {
                 color={colors.primary} 
               />
             </View>
-            <View style={styles.accountDetails}>
-              <Text style={[styles.accountName, { color: colors.text }]}>
-                {session?.staffName || 'موظف المطعم'}
+            <View
+              style={[
+                styles.accountDetails,
+                { alignItems: isRTL ? 'flex-end' : 'flex-start' },
+              ]}>
+              <Text style={[styles.accountName, { color: colors.text, textAlign }]}>
+                {session?.staffName || t('settings.account.fallbackName', 'موظف المطعم')}
               </Text>
-              <View style={styles.roleContainer}>
+              <View
+                style={[
+                  styles.roleContainer,
+                  { alignSelf: isRTL ? 'flex-end' : 'flex-start' },
+                ]}>
                 <View
                   style={[
                     styles.roleBadge,
+                    { flexDirection: rowDirection },
                     { backgroundColor: `${colors.primary}20`, borderColor: colors.primary },
                   ]}>
                   <IconSymbol
@@ -155,12 +199,12 @@ export default function SettingsScreen() {
                     size={14}
                     color={colors.primary}
                   />
-                  <Text style={[styles.roleText, { color: colors.primary }]}>
+                  <Text style={[styles.roleText, { color: colors.primary, textAlign }]}>
                     {getRoleLabel(session?.role || 'waiter')}
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.restaurantCode, { color: colors.muted }]}>
+              <Text style={[styles.restaurantCode, { color: colors.muted, textAlign }]}>
                 {session?.restaurantCode || 'demo-restaurant'}
               </Text>
             </View>
@@ -170,10 +214,14 @@ export default function SettingsScreen() {
 
       {/* Theme Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>المظهر</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text, textAlign }]}>
+          {t('settings.theme.title', 'المظهر')}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.cardLabel, { color: colors.muted }]}>الوضع</Text>
-          <View style={styles.themeOptions}>
+          <Text style={[styles.cardLabel, { color: colors.muted, textAlign }]}>
+            {t('settings.theme.modeLabel', 'الوضع')}
+          </Text>
+          <View style={[styles.themeOptions, { flexDirection: rowDirection }]}>
             {themeOptions.map((option) => (
               <Pressable
                 key={option.mode}
@@ -196,6 +244,7 @@ export default function SettingsScreen() {
                     styles.themeOptionText,
                     {
                       color: themeMode === option.mode ? '#ffffff' : colors.text,
+                      textAlign,
                     },
                   ]}>
                   {option.label}
@@ -204,32 +253,54 @@ export default function SettingsScreen() {
             ))}
           </View>
           {themeMode === 'auto' && (
-            <Text style={[styles.themeNote, { color: colors.muted }]}>
-              سيتغير المظهر تلقائياً حسب إعدادات الجهاز
+            <Text style={[styles.themeNote, { color: colors.muted, textAlign }]}>
+              {t('settings.theme.autoNote', 'سيتغير المظهر تلقائياً حسب إعدادات الجهاز')}
             </Text>
           )}
+        </View>
       </View>
-    </View>
 
       {canManageStaff && (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>فريق المطعم</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text, textAlign }]}>
+            {t('settings.staff.title', 'فريق المطعم')}
+          </Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, gap: 16 }]}>
             <View style={[styles.codeBanner, { borderColor: colors.border, backgroundColor: colors.backgroundAlt }]}>
-              <Text style={[styles.codeLabel, { color: colors.muted }]}>كود المطعم</Text>
-              <Text style={[styles.codeValue, { color: colors.text }]}>{restaurantProfile?.code || 'لم يحدد بعد'}</Text>
+              <Text style={[styles.codeLabel, { color: colors.muted, textAlign }]}>
+                {t('settings.staff.restaurantCode', 'كود المطعم')}
+              </Text>
+              <Text style={[styles.codeValue, { color: colors.text, textAlign }]}>
+                {restaurantProfile?.code || t('settings.staff.codeMissing', 'لم يحدد بعد')}
+              </Text>
             </View>
 
             <View style={styles.staffList}>
               {staffAccounts.length === 0 ? (
-                <Text style={[styles.emptyStaff, { color: colors.muted }]}>لم يتم إضافة أي موظف بعد</Text>
+                <Text style={[styles.emptyStaff, { color: colors.muted, textAlign }]}>
+                  {t('settings.staff.empty', 'لم يتم إضافة أي موظف بعد')}
+                </Text>
               ) : (
                 staffAccounts.map((staff) => (
-                  <View key={staff.id} style={styles.staffRow}>
-                    <View style={styles.staffInfo}>
-                      <Text style={[styles.staffName, { color: colors.text }]}>{staff.name}</Text>
-                      <Text style={[styles.staffMeta, { color: colors.muted }]}>
-                        {getRoleLabel(staff.role)} • الكود: {staff.passcode}
+                  <View
+                    key={staff.id}
+                    style={[
+                      styles.staffRow,
+                      { flexDirection: rowDirection, borderBottomColor: colors.border },
+                    ]}>
+                    <View
+                      style={[
+                        styles.staffInfo,
+                        { alignItems: isRTL ? 'flex-end' : 'flex-start' },
+                      ]}>
+                      <Text style={[styles.staffName, { color: colors.text, textAlign }]}>
+                        {staff.name}
+                      </Text>
+                      <Text style={[styles.staffMeta, { color: colors.muted, textAlign }]}>
+                        {t('settings.staff.meta', '{role} • الكود: {code}', {
+                          role: getRoleLabel(staff.role),
+                          code: staff.passcode,
+                        })}
                       </Text>
                     </View>
                     <TouchableOpacity style={styles.removeStaffBtn} onPress={() => handleRemoveStaff(staff.id, staff.name)}>
@@ -242,13 +313,21 @@ export default function SettingsScreen() {
 
             <View style={styles.staffForm}>
               <TextInput
-                style={[styles.staffInput, { borderColor: colors.border, color: colors.text }]}
-                placeholder="اسم الموظف"
+                style={[
+                  styles.staffInput,
+                  {
+                    borderColor: colors.border,
+                    color: colors.text,
+                    textAlign,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+                placeholder={t('settings.staff.namePlaceholder', 'اسم الموظف')}
                 placeholderTextColor={colors.muted}
                 value={newStaffName}
                 onChangeText={setNewStaffName}
               />
-              <View style={styles.roleSelector}>
+              <View style={[styles.roleSelector, { flexDirection: rowDirection }]}>
                 {staffRoleOptions.map((option) => {
                   const selected = newStaffRole === option.value;
                   return (
@@ -260,7 +339,11 @@ export default function SettingsScreen() {
                         selected && { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
                       ]}
                       onPress={() => setNewStaffRole(option.value)}>
-                      <Text style={[styles.roleChipText, { color: selected ? colors.primary : colors.text }]}>
+                      <Text
+                        style={[
+                          styles.roleChipText,
+                          { color: selected ? colors.primary : colors.text, textAlign },
+                        ]}>
                         {option.label}
                       </Text>
                     </Pressable>
@@ -268,8 +351,16 @@ export default function SettingsScreen() {
                 })}
               </View>
               <TextInput
-                style={[styles.staffInput, { borderColor: colors.border, color: colors.text }]}
-                placeholder="كود الموظف (مثال: 4021)"
+                style={[
+                  styles.staffInput,
+                  {
+                    borderColor: colors.border,
+                    color: colors.text,
+                    textAlign,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+                placeholder={t('settings.staff.passcodePlaceholder', 'كود الموظف (مثال: 4021)')}
                 placeholderTextColor={colors.muted}
                 value={newStaffPasscode}
                 onChangeText={setNewStaffPasscode}
@@ -279,7 +370,11 @@ export default function SettingsScreen() {
                 style={[styles.addStaffButton, { backgroundColor: colors.primary }, isSavingStaff && { backgroundColor: colors.border }]}
                 disabled={isSavingStaff}
                 onPress={handleCreateStaff}>
-                <Text style={styles.addStaffText}>{isSavingStaff ? 'جارٍ الحفظ...' : 'إضافة موظف'}</Text>
+                <Text style={styles.addStaffText}>
+                  {isSavingStaff
+                    ? t('common.saving', 'جارٍ الحفظ...')
+                    : t('settings.staff.addButton', 'إضافة موظف')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -289,10 +384,13 @@ export default function SettingsScreen() {
       {/* Logout Section */}
       <View style={styles.section}>
         <Pressable
-          style={[styles.logoutButton, { backgroundColor: colors.danger }]}
+          style={[
+            styles.logoutButton,
+            { backgroundColor: colors.danger, flexDirection: rowDirection },
+          ]}
           onPress={handleLogout}>
           <IconSymbol name="arrow.right.square.fill" size={20} color="#ffffff" />
-          <Text style={styles.logoutText}>تسجيل الخروج</Text>
+          <Text style={styles.logoutText}>{t('settings.logout.button', 'تسجيل الخروج')}</Text>
         </Pressable>
       </View>
     </ScrollView>
