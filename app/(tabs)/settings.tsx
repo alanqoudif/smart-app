@@ -1,17 +1,25 @@
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useRouter } from 'expo-router';
+
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useTheme } from '@/providers/theme-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { StaffRole } from '@/types';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
 export default function SettingsScreen() {
   const { colorScheme, themeMode, setThemeMode } = useTheme();
-  const { session, logout } = useStaffSession();
+  const { session, logout, staffAccounts, restaurantProfile, createStaffAccount, removeStaffAccount } = useStaffSession();
   const colors = Colors[colorScheme];
   const router = useRouter();
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState<StaffRole>('waiter');
+  const [newStaffPasscode, setNewStaffPasscode] = useState('');
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
 
   const getRoleLabel = (role: string) => {
     switch (role) {
@@ -21,6 +29,8 @@ export default function SettingsScreen() {
         return 'شيف';
       case 'manager':
         return 'مدير المطعم';
+      case 'cashier':
+        return 'كاشير';
       default:
         return 'موظف';
     }
@@ -34,9 +44,58 @@ export default function SettingsScreen() {
         return 'flame.fill';
       case 'manager':
         return 'star.fill';
+      case 'cashier':
+        return 'creditcard.fill';
       default:
         return 'person.fill';
     }
+  };
+
+  const staffRoleOptions: { label: string; value: StaffRole }[] = [
+    { label: 'ويتر', value: 'waiter' },
+    { label: 'كاشير', value: 'cashier' },
+    { label: 'شيف', value: 'chef' },
+  ];
+
+  const canManageStaff = Boolean(session?.isOwner);
+
+  const handleCreateStaff = async () => {
+    if (!newStaffPasscode.trim()) {
+      Alert.alert('أدخل كود الموظف', 'الكود يجب أن يتكون من 4 أحرف على الأقل');
+      return;
+    }
+    setIsSavingStaff(true);
+    try {
+      await createStaffAccount({
+        name: newStaffName,
+        role: newStaffRole,
+        passcode: newStaffPasscode,
+      });
+      setNewStaffName('');
+      setNewStaffPasscode('');
+      Alert.alert('تم إضافة الموظف', 'شارك الكود معه للدخول مباشرة');
+    } catch (error) {
+      Alert.alert('تعذر إضافة الموظف', error instanceof Error ? error.message : 'حاول مرة أخرى');
+    } finally {
+      setIsSavingStaff(false);
+    }
+  };
+
+  const handleRemoveStaff = (staffId: string, staffName: string) => {
+    Alert.alert('حذف موظف', `هل تريد حذف ${staffName}؟`, [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'حذف',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeStaffAccount(staffId);
+          } catch (error) {
+            Alert.alert('تعذر الحذف', error instanceof Error ? error.message : 'حاول مرة أخرى');
+          }
+        },
+      },
+    ]);
   };
 
   const handleLogout = () => {
@@ -149,8 +208,83 @@ export default function SettingsScreen() {
               سيتغير المظهر تلقائياً حسب إعدادات الجهاز
             </Text>
           )}
-        </View>
       </View>
+    </View>
+
+      {canManageStaff && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>فريق المطعم</Text>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, gap: 16 }]}>
+            <View style={[styles.codeBanner, { borderColor: colors.border, backgroundColor: colors.backgroundAlt }]}>
+              <Text style={[styles.codeLabel, { color: colors.muted }]}>كود المطعم</Text>
+              <Text style={[styles.codeValue, { color: colors.text }]}>{restaurantProfile?.code || 'لم يحدد بعد'}</Text>
+            </View>
+
+            <View style={styles.staffList}>
+              {staffAccounts.length === 0 ? (
+                <Text style={[styles.emptyStaff, { color: colors.muted }]}>لم يتم إضافة أي موظف بعد</Text>
+              ) : (
+                staffAccounts.map((staff) => (
+                  <View key={staff.id} style={styles.staffRow}>
+                    <View style={styles.staffInfo}>
+                      <Text style={[styles.staffName, { color: colors.text }]}>{staff.name}</Text>
+                      <Text style={[styles.staffMeta, { color: colors.muted }]}>
+                        {getRoleLabel(staff.role)} • الكود: {staff.passcode}
+                      </Text>
+                    </View>
+                    <TouchableOpacity style={styles.removeStaffBtn} onPress={() => handleRemoveStaff(staff.id, staff.name)}>
+                      <IconSymbol name="trash.fill" size={16} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <View style={styles.staffForm}>
+              <TextInput
+                style={[styles.staffInput, { borderColor: colors.border, color: colors.text }]}
+                placeholder="اسم الموظف"
+                placeholderTextColor={colors.muted}
+                value={newStaffName}
+                onChangeText={setNewStaffName}
+              />
+              <View style={styles.roleSelector}>
+                {staffRoleOptions.map((option) => {
+                  const selected = newStaffRole === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[
+                        styles.roleChip,
+                        { borderColor: colors.border },
+                        selected && { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
+                      ]}
+                      onPress={() => setNewStaffRole(option.value)}>
+                      <Text style={[styles.roleChipText, { color: selected ? colors.primary : colors.text }]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <TextInput
+                style={[styles.staffInput, { borderColor: colors.border, color: colors.text }]}
+                placeholder="كود الموظف (مثال: 4021)"
+                placeholderTextColor={colors.muted}
+                value={newStaffPasscode}
+                onChangeText={setNewStaffPasscode}
+                secureTextEntry
+              />
+              <TouchableOpacity
+                style={[styles.addStaffButton, { backgroundColor: colors.primary }, isSavingStaff && { backgroundColor: colors.border }]}
+                disabled={isSavingStaff}
+                onPress={handleCreateStaff}>
+                <Text style={styles.addStaffText}>{isSavingStaff ? 'جارٍ الحفظ...' : 'إضافة موظف'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Logout Section */}
       <View style={styles.section}>
@@ -280,5 +414,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  codeBanner: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  codeLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+    textAlign: 'right',
+  },
+  codeValue: {
+    fontWeight: '700',
+    fontSize: 18,
+    textAlign: 'right',
+  },
+  staffList: {
+    gap: 8,
+  },
+  staffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  staffInfo: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  staffName: {
+    fontWeight: '700',
+  },
+  staffMeta: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  emptyStaff: {
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
+  removeStaffBtn: {
+    padding: 8,
+    borderRadius: 999,
+  },
+  staffForm: {
+    gap: 10,
+  },
+  staffInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlign: 'right',
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-end',
+  },
+  roleChip: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  roleChipText: {
+    fontWeight: '600',
+  },
+  addStaffButton: {
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  addStaffText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 });
-

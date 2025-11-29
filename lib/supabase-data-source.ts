@@ -74,10 +74,33 @@ function mapOrder(row: SupabaseOrderRow): Order {
 }
 
 async function upsertCustomer(payload: CreateOrderPayload['customer'], total: number): Promise<string> {
+  const fullName = payload.fullName?.trim() || 'بدون اسم';
+  const normalizedPhone = payload.phone?.trim() ?? '';
+
+  if (!normalizedPhone) {
+    const { data: createdNoPhone, error: insertWithoutPhone } = await supabase!
+      .from('customers')
+      .insert({
+        full_name: fullName,
+        phone: 'غير متوفر',
+        total_spend: total,
+        visit_count: 1,
+        last_order_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertWithoutPhone) {
+      throw insertWithoutPhone;
+    }
+
+    return createdNoPhone.id;
+  }
+
   const { data: existing, error } = await supabase!
     .from('customers')
     .select('*')
-    .eq('phone', payload.phone)
+    .eq('phone', normalizedPhone)
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
@@ -88,8 +111,8 @@ async function upsertCustomer(payload: CreateOrderPayload['customer'], total: nu
     const { data: created, error: insertError } = await supabase!
       .from('customers')
       .insert({
-        full_name: payload.fullName,
-        phone: payload.phone,
+        full_name: fullName,
+        phone: normalizedPhone,
         total_spend: total,
         visit_count: 1,
         last_order_at: new Date().toISOString(),
@@ -106,7 +129,7 @@ async function upsertCustomer(payload: CreateOrderPayload['customer'], total: nu
   const { data: updated, error: updateError } = await supabase!
     .from('customers')
     .update({
-      full_name: payload.fullName,
+      full_name: fullName,
       total_spend: existing.total_spend + total,
       visit_count: existing.visit_count + 1,
       last_order_at: new Date().toISOString(),

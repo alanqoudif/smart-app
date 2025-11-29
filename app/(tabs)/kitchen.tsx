@@ -3,14 +3,11 @@ import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useRouter } from 'expo-router';
-
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { formatCurrency, formatShortDate } from '@/lib/format';
 import { useSmartApp } from '@/providers/smart-app-provider';
-import { useStaffSession } from '@/providers/staff-session-provider';
 import { Order, OrderStatus } from '@/types';
 
 const STATUS_FLOW: Record<OrderStatus, OrderStatus | null> = {
@@ -31,14 +28,12 @@ const STATUS_CONFIG: Record<
 export default function KitchenScreen() {
   const theme = useThemeColors();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const router = useRouter();
   const statusColors: Record<OrderStatus, string> = {
     new: theme.warning,
     preparing: theme.primary,
     ready: theme.success,
   };
   const { orders, updateOrderStatus, refresh, isSyncing } = useSmartApp();
-  const { session } = useStaffSession();
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('new');
 
   // Group orders by status
@@ -211,6 +206,12 @@ export default function KitchenScreen() {
                               : 'توصيل خارجي'}
                         </Text>
                       </View>
+                      {order.carNumber ? (
+                        <View style={styles.infoRow}>
+                          <IconSymbol name="car.fill" size={16} color={theme.warning} />
+                          <Text style={styles.metaText}>سيارة: {order.carNumber}</Text>
+                        </View>
+                      ) : null}
                     </View>
 
                     {/* Order Items */}

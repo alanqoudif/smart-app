@@ -17,7 +17,7 @@ export function RoleSwitcher() {
 
   const handleSwitch = async (nextRole: typeof session.role) => {
     await switchRole(nextRole);
-    router.replace(nextRole === 'chef' ? '/(tabs)/kitchen' : '/(tabs)/index');
+    router.replace(nextRole === 'chef' ? '/(tabs)/kitchen' : '/(tabs)');
   };
 
   const handleLogout = async () => {

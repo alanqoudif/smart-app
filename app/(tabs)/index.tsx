@@ -1,8 +1,18 @@
-import { useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 import { Colors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -27,13 +37,51 @@ const FULFILLMENT_OPTIONS: { label: string; value: FulfillmentType }[] = [
 export default function WaiterScreen() {
   const theme = useThemeColors();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const router = useRouter();
-  const { menu, createOrder, refresh, isSyncing, dataSourceId, lastError } = useSmartApp();
+  const { menu, orders, createOrder, refresh, isSyncing, dataSourceId, lastError } = useSmartApp();
   const { session } = useStaffSession();
+  const { width } = useWindowDimensions();
+  const isCashier = session?.role === 'cashier';
+  const isSplitLayout = width >= 900;
+  const badgeLabel = isCashier ? 'شاشة الكاشير' : 'فريق الصالة';
+  const heroTitle = isCashier ? 'شاشة كاشير متوافقة مع الآيباد' : 'تسجيل طلب جديد';
+  const heroSubtitle = isCashier
+    ? 'يتكيف تلقائياً مع الهاتف ويتحول لعمودين بمجرد تشغيله على آيباد.'
+    : 'اربط الطلب بالمطبخ واستلم إشعاراً لحظة انتهاء الشيف.';
+  const heroHelper = isCashier
+    ? 'واجهة مستوحاة من صفحة الترحيب مع حقل السيارة للطلبات الخارجية.'
+    : 'الشيف، الويتر، والكاشير يشاركون نفس هذا النموذج دون إعداد إضافي.';
+  const readyOrders = useMemo(() => orders.filter((order) => order.status === 'ready'), [orders]);
+  const newKitchenOrders = useMemo(() => orders.filter((order) => order.status === 'new'), [orders]);
+  const preparingOrders = useMemo(
+    () => orders.filter((order) => order.status === 'preparing'),
+    [orders],
+  );
+  const notifiedReadyOrders = useRef<Set<string>>(new Set());
+  const hasSyncedReady = useRef(false);
+
+  useEffect(() => {
+    if (!hasSyncedReady.current) {
+      readyOrders.forEach((order) => notifiedReadyOrders.current.add(order.id));
+      hasSyncedReady.current = true;
+      return;
+    }
+    const unseen = readyOrders.filter((order) => !notifiedReadyOrders.current.has(order.id));
+    if (unseen.length === 0) {
+      return;
+    }
+    unseen.forEach((order) => notifiedReadyOrders.current.add(order.id));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    const message =
+      unseen.length === 1
+        ? `الطلب رقم ${unseen[0].id.slice(-5).toUpperCase()} جاهز للاستلام من المطبخ.`
+        : `${unseen.length} طلبات جاهزة للاستلام من المطبخ.`;
+    Alert.alert('تنبيه من المطبخ', message);
+  }, [readyOrders]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [tableNumber, setTableNumber] = useState('');
   const [note, setNote] = useState('');
+  const [carNumber, setCarNumber] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('dine-in');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,17 +102,19 @@ export default function WaiterScreen() {
   );
 
   const phoneDigits = customerPhone.replace(/\D/g, '');
+  const requiresTableNumber = fulfillmentType === 'dine-in';
+  const requiresCarNumber = fulfillmentType === 'pickup';
+  const trimmedTableNumber = tableNumber.trim();
+  const trimmedCarNumber = carNumber.trim();
   const isFormValid =
-    customerName.trim().length > 1 &&
-    phoneDigits.length >= 8 &&
     cartItems.length > 0 &&
-    (fulfillmentType !== 'dine-in' || tableNumber.trim().length > 0);
+    (!requiresTableNumber || trimmedTableNumber.length > 0) &&
+    (!requiresCarNumber || trimmedCarNumber.length >= 3);
 
   const disabledReason = (() => {
-    if (!customerName.trim()) return 'أدخل اسم العميل';
-    if (phoneDigits.length < 8) return 'أدخل رقم جوال صحيح';
-    if (fulfillmentType === 'dine-in' && !tableNumber.trim()) return 'أدخل رقم الطاولة';
     if (cartItems.length === 0) return 'أضف عناصر من القائمة أولاً';
+    if (requiresTableNumber && !trimmedTableNumber) return 'أدخل رقم الطاولة';
+    if (requiresCarNumber && trimmedCarNumber.length < 3) return 'أدخل رقم السيارة للطلبات الخارجية';
     return null;
   })();
 
@@ -101,6 +151,7 @@ export default function WaiterScreen() {
     setCustomerName('');
     setCustomerPhone('');
     setTableNumber('');
+    setCarNumber('');
     setNote('');
     setCartItems([]);
     setFulfillmentType('dine-in');
@@ -111,9 +162,13 @@ export default function WaiterScreen() {
     setIsSubmitting(true);
     try {
       await createOrder({
-        customer: { fullName: customerName.trim(), phone: phoneDigits },
+        customer: {
+          fullName: customerName.trim() || undefined,
+          phone: phoneDigits || undefined,
+        },
         fulfillmentType,
-        tableNumber: fulfillmentType === 'dine-in' ? tableNumber.trim() : undefined,
+        tableNumber: requiresTableNumber ? trimmedTableNumber : undefined,
+        carNumber: requiresCarNumber ? trimmedCarNumber : undefined,
         note: note.trim() || undefined,
         items: cartItems.map((item) => ({
           menuItemId: item.menuItemId,
@@ -137,51 +192,60 @@ export default function WaiterScreen() {
         style={styles.screen}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={refresh} />}>
-        <View style={styles.headerRow}>
-            <Text style={styles.title}>تسجيل طلب جديد</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>{badgeLabel}</Text>
+            </View>
             <View style={styles.dataSourceChip}>
               <Text style={styles.chipText}>
                 {dataSourceId === 'supabase' ? 'وضع الإنتاج' : 'وضع تجريبي بدون إنترنت'}
               </Text>
             </View>
           </View>
+          <Text style={styles.heroTitle}>{heroTitle}</Text>
+          <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+          <Text style={styles.heroHelper}>{heroHelper}</Text>
+        </View>
 
-          {lastError ? <Text style={styles.errorText}>{lastError}</Text> : null}
+        {lastError ? <Text style={styles.errorText}>{lastError}</Text> : null}
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>بيانات العميل</Text>
-            <TextInput
-              placeholder="اسم العميل"
-              placeholderTextColor={theme.muted}
-              value={customerName}
-              onChangeText={setCustomerName}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="رقم الجوال"
-              placeholderTextColor={theme.muted}
-              value={customerPhone}
-              onChangeText={setCustomerPhone}
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
+        <View style={[styles.layout, isSplitLayout && styles.layoutTablet]}>
+          <View style={[styles.column, isSplitLayout && styles.primaryColumnTablet]}>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>بيانات العميل</Text>
+              <TextInput
+                placeholder="اسم العميل"
+                placeholderTextColor={theme.muted}
+                value={customerName}
+                onChangeText={setCustomerName}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="رقم الجوال"
+                placeholderTextColor={theme.muted}
+                value={customerPhone}
+                onChangeText={setCustomerPhone}
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
 
-            <Text style={styles.sectionTitle}>طريقة الخدمة</Text>
-            <View style={styles.segment}>
-              {FULFILLMENT_OPTIONS.map((option) => {
-                const selected = option.value === fulfillmentType;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
-                    onPress={() => setFulfillmentType(option.value)}>
-                    <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              <Text style={styles.sectionTitle}>طريقة الخدمة</Text>
+              <View style={styles.segment}>
+                {FULFILLMENT_OPTIONS.map((option) => {
+                  const selected = option.value === fulfillmentType;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                      onPress={() => setFulfillmentType(option.value)}>
+                      <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
             {fulfillmentType === 'dine-in' ? (
               <TextInput
@@ -192,89 +256,160 @@ export default function WaiterScreen() {
                 style={styles.input}
               />
             ) : null}
+            {fulfillmentType === 'pickup' ? (
+              <TextInput
+                placeholder="رقم السيارة (مثال: ع م 1234)"
+                placeholderTextColor={theme.muted}
+                value={carNumber}
+                onChangeText={setCarNumber}
+                style={styles.input}
+              />
+            ) : null}
             <TextInput
               placeholder="ملاحظات خاصة (اختياري)"
               placeholderTextColor={theme.muted}
               value={note}
               onChangeText={setNote}
-              style={[styles.input, styles.multilineInput]}
-              multiline
-            />
+                style={[styles.input, styles.multilineInput]}
+                multiline
+              />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>قائمة المطعم</Text>
+              {Object.keys(groupedMenu).length === 0 ? (
+                <Text style={styles.mutedText}>لم يتم تعريف القائمة بعد.</Text>
+              ) : (
+                Object.entries(groupedMenu).map(([category, items]) => (
+                  <View key={category} style={styles.menuSection}>
+                    <Text style={styles.categoryTitle}>{category}</Text>
+                    {items.map((item) => (
+                      <View key={item.id} style={styles.menuItemRow}>
+                        <View>
+                          <Text style={styles.menuItemName}>{item.name}</Text>
+                          <Text style={styles.mutedText}>
+                            {formatCurrency(item.price)} • {item.prepTimeMinutes} د
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          disabled={!item.isAvailable}
+                          onPress={() => handleAddItem(item.id, item.name, item.price)}
+                          style={[
+                            styles.addButton,
+                            !item.isAvailable && styles.addButtonDisabled,
+                          ]}>
+                          <Text style={styles.addButtonText}>{item.isAvailable ? '+ أضف' : 'متوقف'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                ))
+              )}
+            </View>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>قائمة المطعم</Text>
-            {Object.keys(groupedMenu).length === 0 ? (
-              <Text style={styles.mutedText}>لم يتم تعريف القائمة بعد.</Text>
-            ) : (
-              Object.entries(groupedMenu).map(([category, items]) => (
-                <View key={category} style={styles.menuSection}>
-                  <Text style={styles.categoryTitle}>{category}</Text>
-                  {items.map((item) => (
-                    <View key={item.id} style={styles.menuItemRow}>
-                      <View>
-                        <Text style={styles.menuItemName}>{item.name}</Text>
-                        <Text style={styles.mutedText}>
-                          {formatCurrency(item.price)} • {item.prepTimeMinutes} د
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        disabled={!item.isAvailable}
-                        onPress={() => handleAddItem(item.id, item.name, item.price)}
-                        style={[
-                          styles.addButton,
-                          !item.isAvailable && styles.addButtonDisabled,
-                        ]}>
-                        <Text style={styles.addButtonText}>{item.isAvailable ? '+ أضف' : 'متوقف'}</Text>
+          <View style={[styles.column, styles.summaryColumn, isSplitLayout && styles.summaryColumnTablet]}>
+            <View style={styles.card}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.sectionTitle}>ملخص الطلب</Text>
+                <Text style={styles.totalLabel}>{formatCurrency(orderTotal)}</Text>
+              </View>
+              {cartItems.length === 0 ? (
+                <Text style={styles.mutedText}>أضف عناصر من القائمة لبدء الطلب.</Text>
+              ) : (
+                cartItems.map((item) => (
+                  <View key={item.menuItemId} style={styles.cartRow}>
+                    <View>
+                      <Text style={styles.menuItemName}>{item.name}</Text>
+                      <Text style={styles.mutedText}>{formatCurrency(item.price * item.quantity)}</Text>
+                    </View>
+                    <View style={styles.quantityControls}>
+                      <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, -1)}>
+                        <Text style={styles.iconButton}>-</Text>
                       </TouchableOpacity>
+                      <Text style={styles.quantity}>{item.quantity}</Text>
+                      <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, 1)}>
+                        <Text style={styles.iconButton}>+</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveItem(item.menuItemId!)}>
+                        <Text style={styles.removeText}>حذف</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+              <TouchableOpacity
+                style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]}
+                disabled={!isFormValid || isSubmitting}
+                onPress={handleSubmit}>
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال الطلب للمطبخ'}
+                </Text>
+              </TouchableOpacity>
+              {!isFormValid && disabledReason ? (
+                <Text style={styles.helperText}>{disabledReason}</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.sectionTitle}>تنبيهات المطبخ</Text>
+                <Text style={styles.totalLabel}>
+                  {readyOrders.length > 0 ? `${readyOrders.length} جاهز` : 'متزامن لحظياً'}
+                </Text>
+              </View>
+              <View style={styles.statusRow}>
+                {[
+                  { label: 'جديد', value: newKitchenOrders.length, color: theme.warning },
+                  { label: 'قيد التحضير', value: preparingOrders.length, color: theme.primary },
+                  { label: 'جاهز', value: readyOrders.length, color: theme.success },
+                ].map((pill) => (
+                  <View key={pill.label} style={[styles.statusPill, { borderColor: pill.color }]}>
+                    <Text style={styles.statusPillLabel}>{pill.label}</Text>
+                    <Text style={[styles.statusPillValue, { color: pill.color }]}>{pill.value}</Text>
+                  </View>
+                ))}
+              </View>
+              {readyOrders.length === 0 ? (
+                <Text style={styles.mutedText}>بانتظار تحديث من الشيف...</Text>
+              ) : (
+                <View style={styles.readyList}>
+                  {readyOrders.slice(0, 3).map((order) => (
+                    <View key={order.id} style={styles.readyRow}>
+                      <View>
+                        <Text style={styles.menuItemName}>{order.customer.fullName}</Text>
+                        <Text style={styles.mutedText}>
+                          {order.fulfillmentType === 'dine-in'
+                            ? `طاولة ${order.tableNumber ?? '-'}`
+                            : order.fulfillmentType === 'pickup'
+                              ? 'استلام'
+                              : 'توصيل'}
+                        </Text>
+                        {order.carNumber ? <Text style={styles.carMeta}>سيارة: {order.carNumber}</Text> : null}
+                      </View>
+                      <View style={styles.readyBadge}>
+                        <Text style={styles.readyBadgeText}>جاهز</Text>
+                      </View>
                     </View>
                   ))}
                 </View>
-              ))
-            )}
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.sectionTitle}>ملخص الطلب</Text>
-              <Text style={styles.totalLabel}>{formatCurrency(orderTotal)}</Text>
-            </View>
-            {cartItems.length === 0 ? (
-              <Text style={styles.mutedText}>أضف عناصر من القائمة لبدء الطلب.</Text>
-            ) : (
-              cartItems.map((item) => (
-                <View key={item.menuItemId} style={styles.cartRow}>
-                  <View>
-                    <Text style={styles.menuItemName}>{item.name}</Text>
-                    <Text style={styles.mutedText}>{formatCurrency(item.price * item.quantity)}</Text>
-                  </View>
-                  <View style={styles.quantityControls}>
-                    <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, -1)}>
-                      <Text style={styles.iconButton}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.quantity}>{item.quantity}</Text>
-                    <TouchableOpacity onPress={() => handleUpdateQuantity(item.menuItemId!, 1)}>
-                      <Text style={styles.iconButton}>+</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleRemoveItem(item.menuItemId!)}>
-                      <Text style={styles.removeText}>حذف</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
-            <TouchableOpacity
-              style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]}
-              disabled={!isFormValid || isSubmitting}
-              onPress={handleSubmit}>
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال الطلب للمطبخ'}
+              )}
+              <Text style={styles.kitchenNote}>
+                بمجرد ضغط الشيف على «جاهز» يصل الإشعار للكاشير والويتر في نفس اللحظة.
               </Text>
-            </TouchableOpacity>
-            {!isFormValid && disabledReason ? (
-              <Text style={styles.helperText}>{disabledReason}</Text>
+            </View>
+
+            {isCashier ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>إرشادات شاشة الآيباد</Text>
+                <Text style={styles.mutedText}>
+                  صممت الأعمدة لتكون على يسار (القائمة) ويمين (الملخص) الشاشة، ويمكنك تشغيلها على آيباد 11"
+                  دون الحاجة لتكبير إضافي.
+                </Text>
+              </View>
             ) : null}
           </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -295,15 +430,65 @@ const createStyles = (theme: typeof Colors.light) =>
       gap: 16,
       paddingBottom: 48,
     },
-    headerRow: {
+    heroCard: {
+      backgroundColor: theme.card,
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      gap: 8,
+    },
+    heroRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    title: {
-      fontSize: 22,
+    heroBadge: {
+      backgroundColor: theme.primaryMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    heroBadgeText: {
+      color: theme.primary,
       fontWeight: '700',
+      fontSize: 13,
+    },
+    heroTitle: {
+      fontSize: 24,
+      fontWeight: '800',
       color: theme.text,
+    },
+    heroSubtitle: {
+      color: theme.muted,
+      lineHeight: 20,
+      fontSize: 14,
+    },
+    heroHelper: {
+      color: theme.text,
+      fontSize: 13,
+    },
+    layout: {
+      gap: 16,
+    },
+    layoutTablet: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 16,
+    },
+    column: {
+      flex: 1,
+      gap: 16,
+    },
+    primaryColumnTablet: {
+      flex: 1.3,
+    },
+    summaryColumn: {
+      gap: 16,
+    },
+    summaryColumnTablet: {
+      flex: 1,
+      maxWidth: 420,
     },
     dataSourceChip: {
       backgroundColor: theme.primaryMuted,
@@ -334,6 +519,7 @@ const createStyles = (theme: typeof Colors.light) =>
       fontSize: 16,
       fontWeight: '600',
       marginBottom: 12,
+      color: theme.text,
     },
     input: {
       borderWidth: 1,
@@ -381,6 +567,7 @@ const createStyles = (theme: typeof Colors.light) =>
       fontSize: 15,
       fontWeight: '600',
       marginBottom: 8,
+      color: theme.text,
     },
     menuItemRow: {
       flexDirection: 'row',
@@ -391,6 +578,7 @@ const createStyles = (theme: typeof Colors.light) =>
     menuItemName: {
       fontSize: 15,
       fontWeight: '600',
+      color: theme.text,
     },
     mutedText: {
       color: theme.muted,
@@ -414,6 +602,11 @@ const createStyles = (theme: typeof Colors.light) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 8,
     },
     totalLabel: {
       fontSize: 18,
@@ -466,5 +659,52 @@ const createStyles = (theme: typeof Colors.light) =>
       marginTop: 8,
       color: theme.muted,
       textAlign: 'center',
+    },
+    statusPill: {
+      flex: 1,
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    statusPillLabel: {
+      fontSize: 13,
+      color: theme.muted,
+    },
+    statusPillValue: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    readyList: {
+      gap: 8,
+      marginTop: 4,
+    },
+    readyRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: theme.backgroundAlt,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    readyBadge: {
+      backgroundColor: theme.primaryMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    readyBadgeText: {
+      color: theme.primary,
+      fontWeight: '700',
+    },
+    carMeta: {
+      color: theme.text,
+      fontSize: 12,
+    },
+    kitchenNote: {
+      marginTop: 8,
+      color: theme.muted,
+      fontSize: 12,
     },
   });

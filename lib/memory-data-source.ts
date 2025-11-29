@@ -15,28 +15,35 @@ function cloneOrder(order: Order): Order {
   };
 }
 
+const normalizePhone = (value?: string) => (value ?? '').replace(/\D/g, '');
+
 function ensureCustomer(payload: CreateOrderPayload['customer'], orderTotal: number): Customer {
-  const existing = customers.find(
-    (customer) => customer.phone.replace(/\s+/g, '') === payload.phone.replace(/\s+/g, ''),
-  );
-  if (existing) {
-    existing.lastOrderAt = new Date().toISOString();
-    existing.totalSpend += orderTotal;
-    existing.visitCount += 1;
-    existing.fullName = payload.fullName;
-    return { ...existing };
+  const normalizedPhone = normalizePhone(payload.phone);
+  const displayName = payload.fullName?.trim() || 'بدون اسم';
+  const displayPhone = normalizedPhone.length > 0 ? (payload.phone?.trim() ?? normalizedPhone) : 'غير متوفر';
+
+  if (normalizedPhone.length > 0) {
+    const existing = customers.find((customer) => normalizePhone(customer.phone) === normalizedPhone);
+    if (existing) {
+      existing.lastOrderAt = new Date().toISOString();
+      existing.totalSpend += orderTotal;
+      existing.visitCount += 1;
+      existing.fullName = displayName;
+      existing.phone = displayPhone;
+      return { ...existing };
+    }
   }
 
   const customer: Customer = {
     id: `customer-${Math.random().toString(36).slice(2, 8)}`,
-    fullName: payload.fullName,
-    phone: payload.phone,
+    fullName: displayName,
+    phone: displayPhone,
     totalSpend: orderTotal,
     visitCount: 1,
     lastOrderAt: new Date().toISOString(),
   };
   customers = [customer, ...customers];
-  return customer;
+  return { ...customer };
 }
 
 export const memoryDataSource: SmartDataSource = {
@@ -62,6 +69,7 @@ export const memoryDataSource: SmartDataSource = {
       status: 'new',
       fulfillmentType: payload.fulfillmentType,
       tableNumber: payload.tableNumber,
+      carNumber: payload.carNumber?.trim() || undefined,
       customer,
       total,
       createdAt: new Date().toISOString(),

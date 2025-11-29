@@ -1,15 +1,16 @@
 import { Redirect, Tabs } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useSmartApp } from '@/providers/smart-app-provider';
 import { useStaffSession } from '@/providers/staff-session-provider';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const { session, isHydrating } = useStaffSession();
+  const theme = useThemeColors();
+  const { session, isHydrating, isOnboardingRequired } = useStaffSession();
+  const { orders } = useSmartApp();
 
   if (isHydrating) {
     return null;
@@ -19,16 +20,55 @@ export default function TabLayout() {
     return <Redirect href="/login" />;
   }
 
-  const isWaiter = session.role === 'waiter';
+  if (session.isOwner && isOnboardingRequired) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  const isWaiter = session.role === 'waiter' || session.role === 'cashier';
   const isChef = session.role === 'chef';
   const isManager = session.role === 'manager';
+  const canSeeCustomers = session.role !== 'waiter' && session.role !== 'chef';
+  const readyCount = orders.filter((order) => order.status === 'ready').length;
+  const kitchenQueue = orders.filter((order) => order.status === 'new' || order.status === 'preparing');
+  const kitchenQueueCount = kitchenQueue.length;
+
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: theme.card,
+      borderRadius: 26,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      height: 70,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowOffset: { width: 0, height: 8 },
+      shadowRadius: 16,
+      elevation: 8,
+      overflow: 'hidden',
+    }),
+    [theme],
+  );
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.muted,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+          marginBottom: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
+        tabBarHideOnKeyboard: true,
       }}>
       {/* طلبات الصالة - للويتر فقط */}
       <Tabs.Screen
@@ -36,7 +76,12 @@ export default function TabLayout() {
         options={{
           title: 'طلبات الصالة',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
-          href: isWaiter ? '/(tabs)/' : null,
+          tabBarBadge: isWaiter && readyCount > 0 ? (readyCount > 9 ? '9+' : readyCount) : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: theme.primary,
+            color: '#fff',
+          },
+          href: isWaiter ? '/(tabs)' : null,
         }}
       />
       
@@ -46,6 +91,10 @@ export default function TabLayout() {
         options={{
           title: 'شاشة المطبخ',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="tray.full.fill" color={color} />,
+          tabBarBadge: isChef && kitchenQueueCount > 0 ? kitchenQueueCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: theme.warning,
+          },
           href: isChef ? '/(tabs)/kitchen' : null,
         }}
       />
@@ -75,6 +124,7 @@ export default function TabLayout() {
         options={{
           title: 'العملاء',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.3.fill" color={color} />,
+          href: canSeeCustomers ? '/(tabs)/customers' : null,
         }}
       />
       

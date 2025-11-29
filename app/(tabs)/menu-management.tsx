@@ -188,7 +188,7 @@ export default function MenuManagementScreen() {
             <View style={styles.emptyState}>
               <IconSymbol name="tray" size={64} color={theme.muted} style={{ opacity: 0.3 }} />
               <Text style={styles.emptyText}>لا توجد أصناف في المنيو</Text>
-              <Text style={styles.emptySubtext}>اضغط على زر "إضافة صنف" لبدء إنشاء المنيو</Text>
+              <Text style={styles.emptySubtext}>اضغط على زر «إضافة صنف» لبدء إنشاء المنيو</Text>
             </View>
           )}
         </ScrollView>
@@ -504,4 +504,3 @@ const createStyles = (theme: typeof Colors.light) =>
       fontWeight: '600',
     },
   });
-
