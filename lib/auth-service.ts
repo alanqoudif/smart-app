@@ -3,15 +3,15 @@
  * Handles restaurant owner and staff authentication
  */
 
-import { supabase } from './supabase';
-import type { 
-  RestaurantProfile, 
-  StaffAccount, 
-  StaffSession, 
-  StaffRole,
+import type {
   RestaurantExperience,
-  RestaurantOnboardingAnswers 
+  RestaurantOnboardingAnswers,
+  RestaurantProfile,
+  StaffAccount,
+  StaffRole,
+  StaffSession
 } from '@/types';
+import { supabase } from './supabase';
 
 // ============================================================================
 // RESTAURANT OWNER AUTHENTICATION
