@@ -1,11 +1,10 @@
 import { CreateOrderPayload, Customer, MenuItem, Order, OrderStatus } from '@/types';
 
-import { mockCustomers, mockMenuItems, mockOrders } from './mock-data';
 import { SmartDataSource } from './data-source';
 
-let menuItems = [...mockMenuItems];
-let customers = [...mockCustomers];
-let orders = [...mockOrders];
+let menuItems: MenuItem[] = [];
+let customers: Customer[] = [];
+let orders: Order[] = [];
 
 function cloneOrder(order: Order): Order {
   return {

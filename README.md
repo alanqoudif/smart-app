@@ -8,7 +8,7 @@
 - **دخول الموظفين (ويتر/شيف)**: شاشة دخول سريعة مع زر تبديل الدور في أي وقت ليتحدث الطرفان على نفس قاعدة البيانات.
 - **لوحة تحكم صاحب المطعم**: مؤشرات لحظية عن المبيعات، متوسط التذكرة، المنتجات الأعلى طلباً، وتحليل بالساعة.
 - **قاعدة بيانات العملاء**: سجل كامل للطلبات السابقة، إجمالي الصرف، المفضلات، وزر لتصدير البيانات كـ CSV/Excel.
-- **مصدر بيانات مرن**: في حال عدم تهيئة Supabase، يعمل التطبيق بوضع تجريبي يعتمد على بيانات Mock حتى لا تتعطل رحلة التطوير.
+- **مصدر بيانات مرن**: في حال عدم تهيئة Supabase، يعمل التطبيق بوضع تجريبي بذاكرة محلية فارغة دون بيانات قالب.
 
 ## المتطلبات
 - Node.js 18+
@@ -28,11 +28,14 @@ npx expo start
 ضع القيم التالية داخل `.env` أو في متغيرات النظام قبل تشغيل Expo:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+SUPABASE_URL=https://jjwjlapidxjkxejkhjgd.supabase.co
+SUPABASE_KEY=PASTE_YOUR_ANON_KEY_HERE
+# Expo public fallbacks (optional)
+EXPO_PUBLIC_SUPABASE_URL=https://jjwjlapidxjkxejkhjgd.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=PASTE_YOUR_ANON_KEY_HERE
 ```
 
-عند ترك القيم فارغة سيعمل التطبيق بالوضع التجريبي (ذاكرة محلية) مع بيانات جاهزة في `lib/mock-data.ts`.
+عند ترك القيم فارغة سيعمل التطبيق بالوضع التجريبي (ذاكرة محلية) لكن بدون أي بيانات تمهيدية.
 
 ## إعداد قاعدة البيانات السحابية (Supabase)
 1. أنشئ مشروع Supabase جديد.
@@ -41,6 +44,10 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
    supabase db execute --file supabase/schema.sql
    ```
    أو الصقه في SQL Editor داخل لوحة Supabase.
+   - اختياري: لتعبئة قائمة أولية، شغّل أيضًا:
+     ```bash
+     supabase db execute --file supabase/seed-menu.sql
+     ```
 3. فعّل RLS حسب الحاجة ثم امنح مفاتيح `anon` للتطبيق (توجد تعليمات في ملف `.env.example`).
 4. بعد تعبئة بيانات القائمة (`menu_items`) سيبدأ التطبيق بقراءة/كتابة البيانات الحقيقية عبر `@supabase/supabase-js`.
 
@@ -64,7 +71,7 @@ supabase/schema.sql      # تعريف الجداول (customers, menu_items, ord
 1. كل شاشة تستدعي `useSmartApp()` للحصول على القائمة، الطلبات، العملاء، والمتركس.
 2. `SmartAppProvider` يختار المصدر المناسب تلقائياً:
    - **Supabase** إذا تم ضبط مفاتيح البيئة.
-   - **ذاكرة داخلية** مع بيانات `lib/mock-data.ts` في حال عدم وجود إعدادات.
+   - **ذاكرة داخلية** فارغة في حال عدم وجود إعدادات.
 3. يتم تحديث الحالة بعد كل `createOrder` أو `updateOrderStatus` ثم يعاد حساب مؤشرات لوحة التحكم من خلال `lib/metrics.ts`.
 
 ## التصدير إلى Excel/CSV

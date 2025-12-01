@@ -17,6 +17,7 @@ type SupabaseOrderRow = {
   id: string;
   status: OrderStatus;
   fulfillment_type: string;
+  car_number?: string | null;
   table_number?: string | null;
   total: number;
   created_at: string;
@@ -55,6 +56,7 @@ function mapOrder(row: SupabaseOrderRow): Order {
     id: row.id,
     status: row.status,
     fulfillmentType: row.fulfillment_type as Order['fulfillmentType'],
+    carNumber: row.car_number ?? undefined,
     tableNumber: row.table_number ?? undefined,
     customer: mapCustomer(row.customers),
     total: row.total,
@@ -173,6 +175,7 @@ export const supabaseDataSource: SmartDataSource | null = supabase
             id,
             status,
             fulfillment_type,
+            car_number,
             table_number,
             total,
             note,
@@ -225,6 +228,7 @@ export const supabaseDataSource: SmartDataSource | null = supabase
             customer_id: customerId,
             status: 'new',
             fulfillment_type: payload.fulfillmentType,
+            car_number: payload.carNumber ?? null,
             table_number: payload.tableNumber ?? null,
             total,
             note: payload.note ?? null,
@@ -272,6 +276,7 @@ export const supabaseDataSource: SmartDataSource | null = supabase
             id,
             status,
             fulfillment_type,
+            car_number,
             table_number,
             total,
             note,

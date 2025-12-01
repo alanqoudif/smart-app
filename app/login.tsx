@@ -40,6 +40,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState(restaurantProfile?.ownerEmail ?? '');
   const [ownerPassword, setOwnerPassword] = useState('');
   const [restaurantCode, setRestaurantCode] = useState(restaurantProfile?.code ?? '');
+  const [staffName, setStaffName] = useState('');
   const [staffPasscode, setStaffPasscode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textAlign = isRTL ? 'right' : 'left';
@@ -72,21 +73,21 @@ export default function LoginScreen() {
   };
 
   const handleStaffLogin = async () => {
-    if (!restaurantCode.trim() || !staffPasscode.trim()) {
+    if (!restaurantCode.trim() || !staffName.trim() || !staffPasscode.trim()) {
       Alert.alert(
         t('login.staffMissingTitle', 'بيانات ناقصة'),
-        t('login.staffMissingMessage', 'أدخل كود المطعم وكود الموظف'),
+        t('login.staffMissingMessage', 'أدخل كود المطعم والاسم وكود الموظف'),
       );
       return;
     }
     setIsSubmitting(true);
     try {
-      const result = await loginStaff({ restaurantCode, passcode: staffPasscode });
+      const result = await loginStaff({ restaurantCode, name: staffName, passcode: staffPasscode });
       router.replace(getInitialRouteForRole(result.session.role));
     } catch (error) {
       Alert.alert(
         t('login.staffErrorTitle', 'تعذر تسجيل الدخول'),
-        error instanceof Error ? error.message : t('login.staffErrorMessage', 'تأكد من الكود'),
+        error instanceof Error ? error.message : t('login.staffErrorMessage', 'تأكد من البيانات'),
       );
     } finally {
       setIsSubmitting(false);
@@ -189,11 +190,27 @@ export default function LoginScreen() {
                 ]}
                 value={restaurantCode}
                 onChangeText={setRestaurantCode}
-                placeholder="restaurant-code"
-                autoCapitalize="none"
+                placeholder="DEMO-REST-001"
+                autoCapitalize="characters"
                 placeholderTextColor={theme.muted}
               />
-              <Text style={styles.label}>{t('login.staffPasscode', 'كود الموظف / كلمة المرور')}</Text>
+              <Text style={styles.label}>{t('login.staffName', 'اسمك')}</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: theme.border,
+                    color: theme.text,
+                    backgroundColor: theme.background,
+                    textAlign,
+                  },
+                ]}
+                value={staffName}
+                onChangeText={setStaffName}
+                placeholder={t('login.staffNamePlaceholder', 'محمد')}
+                placeholderTextColor={theme.muted}
+              />
+              <Text style={styles.label}>{t('login.staffPasscode', 'الرمز السري (4 أرقام)')}</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -208,12 +225,14 @@ export default function LoginScreen() {
                 onChangeText={setStaffPasscode}
                 placeholder="1234"
                 secureTextEntry
+                keyboardType="number-pad"
+                maxLength={6}
                 placeholderTextColor={theme.muted}
               />
               <Text style={styles.helperText}>
                 {t(
                   'login.staffHelper',
-                  'اطلب من صاحب المطعم مشاركة كود المطعم والرمز الخاص بك (مكون من 4 أرقام على الأقل) للدخول المباشر إلى شاشة دورك.',
+                  'اطلب من صاحب المطعم مشاركة كود المطعم واسمك والرمز السري الخاص بك للدخول.',
                 )}
               </Text>
               <TouchableOpacity

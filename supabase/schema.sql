@@ -25,8 +25,9 @@ create table if not exists public.menu_items (
 create table if not exists public.orders (
   id uuid primary key default uuid_generate_v4(),
   customer_id uuid references public.customers (id) on delete set null,
-  status text not null default 'new',
-  fulfillment_type text not null,
+  status text not null default 'new' check (status in ('new', 'preparing', 'ready')),
+  fulfillment_type text not null check (fulfillment_type in ('dine-in', 'pickup', 'delivery')),
+  car_number text,
   table_number text,
   total numeric(10, 2) not null default 0,
   note text,
@@ -38,7 +39,7 @@ create table if not exists public.orders (
 create table if not exists public.order_items (
   id uuid primary key default uuid_generate_v4(),
   order_id uuid references public.orders (id) on delete cascade,
-  menu_item_id uuid references public.menu_items (id),
+  menu_item_id uuid references public.menu_items (id) on delete set null,
   name text not null,
   price numeric(10, 2) not null,
   quantity integer not null default 1,
